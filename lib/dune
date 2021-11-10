@@ -1,0 +1,3 @@
+(library
+ (name rpi)
+ (foreign_stubs (language c) (names rpi_mem.c)))
