@@ -379,13 +379,13 @@ module Serial : sig
 
   (** {1:read Read} *)
 
-  val read_byte : unit -> int
+  (* val read_byte : unit -> int
   (** [read_byte ()] blocks until a byte becomes available on the
       serial connection. *)
 
   val try_read_byte : unit -> int option
   (** [try_read_byte ()] is [Some b] a byte could be read from the
-      serial connection and [None] otherwise. *)
+      serial connection and [None] otherwise. *) *)
 
   (** {1:write Write} *)
 
@@ -398,6 +398,12 @@ module Serial : sig
   val writef :  ('a, Format.formatter, unit) format -> 'a
   (** [writef fmt ...] write a string formatted according to [fmt]
       on the serial connection. *)
+end
+
+
+module PWM: sig
+   val init: unit
+   val write: int -> unit
 end
 
 (*---------------------------------------------------------------------------

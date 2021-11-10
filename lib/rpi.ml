@@ -172,57 +172,69 @@ module Serial = struct
 
   (* UART0 registers *)
 
-  let uart_base = Mem.(Mmio.base + 0x00201000n)
-  let uart_dr = Mem.(uart_base + 0x00n)
-  let uart_fr = Mem.(uart_base + 0x18n)
-  let uart_ibrd = Mem.(uart_base + 0x24n)
-  let uart_fbrd = Mem.(uart_base + 0x28n)
-  let uart_lcrh = Mem.(uart_base + 0x2cn)
-  let uart_cr = Mem.(uart_base + 0x30n)
-  let uart_imsc = Mem.(uart_base + 0x38n)
-  let uart_icr = Mem.(uart_base + 0x44n)
+  let uart_base = Mem.(Mmio.base + 0x215000n)  (*aux base*)
+
+let aux_irq         =Mem.(uart_base + 0x00n)
+let aux_enables     = Mem.(uart_base + 0x04n)
+let aux_mu_io_reg   = Mem.(uart_base + 0x40n)
+let aux_mu_ier_reg  = Mem.(uart_base + 0x44n)
+let aux_mu_iir_reg  = Mem.(uart_base + 0x48n)
+let aux_mu_lcr_reg  = Mem.(uart_base + 0x4cn)
+let aux_mu_mcr_reg  = Mem.(uart_base + 0x50n)
+let aux_mu_lsr_reg  = Mem.(uart_base +0x54n )
+let aux_mu_msr_reg  = Mem.(uart_base + 0x58n)
+let aux_mu_scratch  = Mem.(uart_base + 0x5cn)
+let aux_mu_cntl_reg = Mem.(uart_base + 0x60n)
+let aux_mu_stat_reg = Mem.(uart_base + 0x64n) 
+let aux_mu_baud_reg = Mem.(uart_base + 0x68n) 
+let aux_uart_clock  = 500000000
+let uart_max_queue  = 16 * 1024
+
 
   (* Initialisation *)
 
   let inited = ref false
 
+
+
+  let aux_mu_baud baud = ((aux_uart_clock / (baud*8))-1)
+
   let init () =
     if !inited then () else
     begin
       (* Disable UART *)
-      Mem.set_int uart_cr 0;
-      (* Disable pull up/down resistors on RC and TX pins *)
+      Mem.set_int aux_enables 1;
+      Mem.set_int aux_mu_ier_reg 0;
+      Mem.set_int aux_mu_cntl_reg 0;
+      Mem.set_int aux_mu_lcr_reg 3; (*8 bits*)
+      Mem.set_int aux_mu_mcr_reg 0;
+      Mem.set_int aux_mu_ier_reg 0;
+      Mem.set_int aux_mu_iir_reg  0xc6;
+      Mem.set_int aux_mu_baud_reg (aux_mu_baud 115200);
       Gpio.(set_pull_state P14 PULL_OFF);
+      Gpio.(set_func P14 F_ALT5);
       Gpio.(set_pull_state P15 PULL_OFF);
-      (* Clear interrupts *)
-      Mem.set_int uart_icr 0x7FF;
-      (* Set baud rate to 115200 *)
-      Mem.set_int uart_ibrd 1;
-      Mem.set_int uart_fbrd 40;
-      (* FIFO, 8 bit, no parity *)
-      Mem.set_int uart_lcrh ((1 lsl 4) lor (0b11 lsl 5));
-      (* Mask interrupts *)
-      Mem.set_int32 uart_imsc 0xFFFFl;
-      (* Enable UART with reception and transmission *)
-      Mem.set_int uart_cr ((1 lsl 0) lor (1 lsl 8) lor (1 lsl 9));
+      Gpio.(set_func P15 F_ALT5);
+      
+      Mem.set_int aux_mu_cntl_reg 3;
       inited := true
     end
 
   (* Reads *)
-
+(* 
   let read_byte () =
-    while (Mem.get_int uart_fr land (1 lsl 4) <> 0) do () done;
+    while (Mem.get_int aux land (1 lsl 4) <> 0) do () done;
     Mem.get_int uart_dr land 0xFF
 
   let try_read_byte () = match Mem.get_int uart_fr land (1 lsl 4) with
   | 0 -> None
-  | n -> Some (Mem.get_int uart_dr land 0xFF)
+  | n -> Some (Mem.get_int uart_dr land 0xFF) *)
 
   (* Writes *)
 
   let write_byte byte =
-    while (Mem.get_int uart_fr land (1 lsl 5) <> 0) do () done;
-    Mem.set_int uart_dr byte
+    while (((Mem.get_int aux_mu_lsr_reg) land 0x20) == 0) do () done;
+    Mem.set_int aux_mu_io_reg byte
 
   let write s =
     let max = String.length s - 1 in
@@ -281,7 +293,7 @@ module Mbox = struct
   let write c v =
     let c = channel_to_int32 c in
     let v = Nativeint.to_int32 v in
-    let rec loop () =
+    let  loop () =
       block_on full;
       Mem.set_int32 mbox_write (msg c v);
     in
@@ -440,12 +452,12 @@ module Mbox = struct
         | Unit -> `Ok (Some ())
         | Bytes (_, parse) ->
             let addr = Mem.(offset (Map.base resp.msg) @@ 4 * pos) in
-            some @@ parse (Mem.Map.bytes addr len)
+            some @@ parse (Mem.Map.bytes addr ~len)
         | Int32 (_, parse) ->
             some @@ parse (Bigarray.Array1.sub resp.msg pos (len / 4))
         | Int64 (_, parse) ->
             let addr = Mem.(offset (Map.base resp.msg) @@ 4 * pos) in
-            some @@ parse (Mem.Map.int64s addr (len / 8))
+            some @@ parse (Mem.Map.int64s addr ~len:(len / 8))
       with Not_found -> `Ok None
 
   end
@@ -483,6 +495,52 @@ module Mtime = struct
   let s_to_us = 1_000_000L
   let ms_to_us = 1_000L
 end
+
+
+module Clock = struct
+
+  let password = (0x5a lsl 24)
+
+  let pi4_freq = 54000000
+  let div_divi value = (value land 0xfff) lsl 12
+  let base = Mem.(Mmio.base + 0x101000n)
+  let cm_pwmdiv = Mem.(base + 0xa4n)
+  let cm_pwmctl = Mem.(base + 0xa0n)
+
+  let set_pwm_clock freq = 
+    Mem.(set_int cm_pwmdiv (  password lor (div_divi (pi4_freq/freq) )));
+    Mem.(set_int cm_pwmctl (password lor 1));
+    Mem.(set_int cm_pwmctl ((password lor 1) lor (1 lsl 4)));
+    Mtime.sleep_us 10L;
+    while (((Mem.get_int cm_pwmctl) land (1 lsl 7)) <> 0) do () done;
+
+
+end
+
+
+module  PWM = struct
+  
+  let base = Mem.(Mmio.base + 0x20c000n)
+  let ctl =  base
+  let sta = Mem.(base + 0x04n)
+  let rng1 = Mem.(base + 0x10n)
+  let dat1 = Mem.(base + 0x14n)
+  let fif1 = Mem.(base + 0x18n)
+  let rng2 = Mem.(base + 0x20n)
+  let dat2 = Mem.(base + 0x24n)
+
+  let init =
+    Gpio.(set_pull_state P18 PULL_OFF);
+    Gpio.(set_func P18 F_ALT5);
+    Clock.set_pwm_clock (3*800000);
+    Mem.set_int ctl ((1 lsl 7) lor(1 lsl 5) lor (1 lsl 0))
+
+    let write int_val =
+      while (((Mem.get_int sta) land 1) == 1) do () done;
+      Mem.set_int  fif1 int_val
+
+end
+
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2015 Daniel C. Bünzli.
