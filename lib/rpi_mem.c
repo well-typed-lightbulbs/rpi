@@ -79,13 +79,6 @@ static inline void mem_set_u64_bits (uint32_t r, uint64_t bits, uint64_t v)
 #include <caml/alloc.h>
 #include <caml/bigarray.h>
 
-/* Memory mapped IO */
-
-value ocamlrpi_mmio_base (value unit)
-{
-  extern uint32_t rpi_mmio_base; // See startup.c
-  return caml_copy_nativeint (rpi_mmio_base);
-}
 
 /* Memory barriers */
 

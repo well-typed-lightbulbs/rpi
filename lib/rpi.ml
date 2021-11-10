@@ -92,8 +92,7 @@ module Mem = struct
 end
 
 module Mmio = struct
-  external get_base : unit -> nativeint = "ocamlrpi_mmio_base"
-  let base = get_base ()
+  let base = 0xfe000000n
 end
 
 module Gpio = struct
