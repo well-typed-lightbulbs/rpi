@@ -172,8 +172,7 @@ module Serial = struct
 
   (* UART0 registers *)
 
-  let uart_base = Mem.(Mmio.base + 0x215000n)  (*aux base*)
-
+let uart_base = Mem.(Mmio.base + 0x215000n)  (*aux base*)
 let aux_irq         =Mem.(uart_base + 0x00n)
 let aux_enables     = Mem.(uart_base + 0x04n)
 let aux_mu_io_reg   = Mem.(uart_base + 0x40n)
@@ -511,9 +510,9 @@ module Clock = struct
     Mem.(set_int cm_pwmdiv (  password lor (div_divi (pi4_freq/freq) )));
     Mem.(set_int cm_pwmctl (password lor 1));
     Mem.(set_int cm_pwmctl ((password lor 1) lor (1 lsl 4)));
-    Mtime.sleep_us 10L;
+    (* TODO Fix this*)
+    (* Mtime.sleep_us 10L; *)
     while (((Mem.get_int cm_pwmctl) land (1 lsl 7)) <> 0) do () done;
-
 
 end
 
@@ -529,12 +528,12 @@ module  PWM = struct
   let rng2 = Mem.(base + 0x20n)
   let dat2 = Mem.(base + 0x24n)
 
-  let init =
+  let init () =
     Gpio.(set_pull_state P18 PULL_OFF);
     Gpio.(set_func P18 F_ALT5);
     Clock.set_pwm_clock (3*800000);
     Mem.set_int ctl ((1 lsl 7) lor(1 lsl 5) lor (1 lsl 0))
-
+    
     let write int_val =
       while (((Mem.get_int sta) land 1) == 1) do () done;
       Mem.set_int  fif1 int_val

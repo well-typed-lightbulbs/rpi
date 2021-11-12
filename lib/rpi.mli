@@ -402,7 +402,7 @@ end
 
 
 module PWM: sig
-   val init: unit
+   val init: unit -> unit
    val write: int -> unit
 end
 
