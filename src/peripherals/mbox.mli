@@ -1,3 +1,5 @@
+include Peripheral.S
+
 (** Mailboxes.
 
     Mailbox allow to connect with the RPi's GPU which is in charge
@@ -14,6 +16,8 @@
       {{:https://github.com/raspberrypi/firmware/wiki/Mailbox-property-interface}mailbox property interface} (channel [Tags_ARM_to_VC]). *)
 module Prop : sig
   (** {1 Property values} *)
+
+  type peri = t
 
   (** The type for response property values. The expected maximal
         length of the response and a property parser. The map given to
@@ -74,7 +78,7 @@ module Prop : sig
   type resp
   (** The type for responses. *)
 
-  val send : ereq list -> (resp, [ `Msg of string ]) result
+  val send : peri -> ereq list -> (resp, [ `Msg of string ]) result
   (** [send reqs] sends the list of requests [reqs] in the given order. *)
 
   val find : resp -> 'a req -> ('a option, [ `Msg of string ]) result
@@ -103,8 +107,8 @@ type channel =
       by the GPU as they are used to transmit the channel.
       used. As such addresses must be aligned on 16 bytes. *)
 
-val read : channel -> Mem.addr
+val read : t -> channel -> Mem.addr
 (** [read c] reads the address of channel [c]. *)
 
-val write : channel -> Mem.addr -> unit
+val write : t -> channel -> Mem.addr -> unit
 (** [write c a] writes the [v] to the channel [c]. *)

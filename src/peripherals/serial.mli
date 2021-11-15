@@ -1,3 +1,5 @@
+include Peripheral.S
+
 (** Serial connection.
 
     [Serial] gives access to a
@@ -10,7 +12,7 @@
 
 (** {1:init Initialization} *)
 
-val init : unit -> unit
+val init : gpio:Gpio.t -> t -> unit
 (** [init ()] initializes the serial connection. *)
 
 (** {1:read Read} *)
@@ -25,12 +27,12 @@ val init : unit -> unit
 
 (** {1:write Write} *)
 
-val write_byte : int -> unit
+val write_byte : t -> int -> unit
 (** [write_byte b] writes the byte [b] on the serial connection. *)
 
-val write : string -> unit
+val write : t -> string -> unit
 (** [write s] writes [s] on the serial connection. *)
 
-val writef : ('a, Format.formatter, unit) format -> 'a
+val writef : t -> ('a, Format.formatter, unit) format -> 'a
 (** [writef fmt ...] write a string formatted according to [fmt]
       on the serial connection. *)

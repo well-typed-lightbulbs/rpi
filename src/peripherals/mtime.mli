@@ -1,3 +1,5 @@
+include Peripheral.S
+
 (** Monotonic time.
 
     [Mtime] gives access to the 64-bit free running system timer
@@ -14,11 +16,11 @@ type span_us = int64
 
 (** {1:passing Passing time} *)
 
-val elapsed_us : unit -> span_us
+val elapsed_us : t -> span_us
 (** [elapsed ()] is the number of microseconds elasped since boot
       time. *)
 
-val sleep_us : span_us -> unit
+val sleep_us : t -> span_us -> unit
 (** [sleep_us d] blocks and sleeps for [d] microseconds. *)
 
 (** {1:counters Counters} *)
@@ -26,10 +28,10 @@ val sleep_us : span_us -> unit
 type counter
 (** The type for counters. *)
 
-val counter : unit -> counter
+val counter : t -> counter
 (** [counter ()] is a counter counting from call time on. *)
 
-val counter_value_us : counter -> span_us
+val counter_value_us : t -> counter -> span_us
 (** [counter_value_us c] is the current counter value in microseconds. *)
 
 (** {1:conv Time conversion} *)

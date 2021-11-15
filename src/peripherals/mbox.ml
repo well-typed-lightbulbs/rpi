@@ -1,3 +1,5 @@
+include Peripheral
+
 let strf = Format.asprintf
 
 type channel =
@@ -15,19 +17,19 @@ type channel =
 let channel_to_int32 : channel -> int32 =
  fun m -> Int32.of_int (Obj.magic (Obj.repr m) : int)
 
-let mbox_base = Mem.(Mmio.base + 0xB880n)
+let base `Rpi4 = Mem.(Mmio.base + 0xB880n)
 
-let mbox_read = Mem.(mbox_base + 0x00n)
+let mbox_read base = Mem.(base + 0x00n)
 
-let mbox_peek = Mem.(mbox_base + 0x10n)
+let mbox_peek base = Mem.(base + 0x10n)
 
-let mbox_sender = Mem.(mbox_base + 0x14n)
+let mbox_sender base = Mem.(base + 0x14n)
 
-let mbox_status = Mem.(mbox_base + 0x18n)
+let mbox_status base = Mem.(base + 0x18n)
 
-let mbox_config = Mem.(mbox_base + 0x1Cn)
+let mbox_config base = Mem.(base + 0x1Cn)
 
-let mbox_write = Mem.(mbox_base + 0x20n)
+let mbox_write base = Mem.(base + 0x20n)
 
 let empty = 0x40000000l
 
@@ -39,34 +41,35 @@ let msg_channel r = Int32.logand r 0xFl
 
 let msg_value r = Nativeint.of_int32 Int32.(logand r 0xFFFF_FFF0l)
 
-let block_on s =
-  while Int32.logand (Mem.get_int32 mbox_status) s <> 0l do
+let block_on base s =
+  while Int32.logand (Mem.get_int32 (mbox_status base)) s <> 0l do
     ()
   done
 
-let read c =
+let read base c =
   let c = channel_to_int32 c in
   let rec loop () =
-    block_on empty;
+    block_on base empty;
     Mem.dmb ();
-    let m = Mem.get_int32 mbox_read in
+    let m = Mem.get_int32 (mbox_read base) in
     Mem.dmb ();
     if Int32.compare (msg_channel m) c = 0 then msg_value m else loop ()
   in
   loop ()
 
-let write c v =
+let write base c v =
   let c = channel_to_int32 c in
   let v = Nativeint.to_int32 v in
   let loop () =
-    block_on full;
-    Mem.set_int32 mbox_write (msg c v)
+    block_on base full;
+    Mem.set_int32 (mbox_write base) (msg c v)
   in
   loop ()
 
 (* Property interface *)
 
 module Prop = struct
+  type peri = t
   (* Property values *)
 
   type 'a t =
@@ -218,11 +221,11 @@ module Prop = struct
     in
     loop [] 2
 
-  let send reqs =
+  let send base reqs =
     let msg = request_msg reqs in
     let addr = Mem.Map.base msg in
-    write Tags_ARM_to_VC addr;
-    let addr' = read Tags_ARM_to_VC in
+    write base Tags_ARM_to_VC addr;
+    let addr' = read base Tags_ARM_to_VC in
     if addr <> addr' then Error (err_addr addr addr')
     else
       match msg.{1} with

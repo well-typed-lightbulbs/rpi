@@ -1,3 +1,5 @@
+include Peripheral.S
+
 (** GPIO pins.
 
     {b References}
@@ -20,16 +22,16 @@ type pin = P00 | P01 | P02 | P03 | P04 | P05 | P06 | P07 | P08 | P09 | P10
 (** The type for pin functions. *)
 type func = F_IN | F_OUT | F_ALT5 | F_ALT4 | F_ALT0 | F_ALT1 | F_ALT2 | F_ALT3
 
-val set_func : pin -> func -> unit
+val set_func : t -> pin -> func -> unit
 (** [set p func] sets the function of pin [p] to [func]. *)
 
 (** The type for pin pull state. *)
 type pull_state = PULL_OFF | PULL_DOWN | PULL_UP
 
-val set_pull_state : pin -> pull_state -> unit
+val set_pull_state : t -> pin -> pull_state -> unit
 (** [set p state] sets the pull state of pin [p] to [state]. *)
 
 (** {1:rw Read and write} *)
 
-val set : pin -> bool -> unit
+val set : t -> pin -> bool -> unit
 (** [set p v] sets the value of pin [p] to [v]. *)

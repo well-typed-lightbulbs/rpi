@@ -1,27 +1,29 @@
-let base = Mem.(Mmio.base + 0x20c000n)
+include Peripheral
 
-let ctl = base
+let base `Rpi4 = Mem.(Mmio.base + 0x20c000n)
 
-let sta = Mem.(base + 0x04n)
+let ctl base = base
 
-let rng1 = Mem.(base + 0x10n)
+let sta base = Mem.(base + 0x04n)
 
-let dat1 = Mem.(base + 0x14n)
+let rng1 base = Mem.(base + 0x10n)
 
-let fif1 = Mem.(base + 0x18n)
+let dat1 base = Mem.(base + 0x14n)
 
-let rng2 = Mem.(base + 0x20n)
+let fif1 base = Mem.(base + 0x18n)
 
-let dat2 = Mem.(base + 0x24n)
+let rng2 base = Mem.(base + 0x20n)
 
-let init () =
-  Gpio.(set_pull_state P18 PULL_OFF);
-  Gpio.(set_func P18 F_ALT5);
-  Clock.set_pwm_clock (3 * 800000);
-  Mem.set_int ctl ((1 lsl 7) lor (1 lsl 5) lor (1 lsl 0))
+let dat2 base = Mem.(base + 0x24n)
 
-let write int_val =
-  while Mem.get_int sta land 1 == 1 do
+let init ~clock ~gpio base =
+  Gpio.(set_pull_state gpio P18 PULL_OFF);
+  Gpio.(set_func gpio P18 F_ALT5);
+  Clock.set_pwm_clock clock (3 * 800000);
+  Mem.set_int (ctl base) ((1 lsl 7) lor (1 lsl 5) lor (1 lsl 0))
+
+let write base int_val =
+  while Mem.get_int (sta base) land 1 == 1 do
     ()
   done;
-  Mem.set_int fif1 int_val
+  Mem.set_int (fif1 base) int_val

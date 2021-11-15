@@ -1,3 +1,5 @@
-val init : unit -> unit
+include Peripheral.S
 
-val write : int -> unit
+val init : clock:Clock.t -> gpio:Gpio.t -> t -> unit
+
+val write : t -> int -> unit
