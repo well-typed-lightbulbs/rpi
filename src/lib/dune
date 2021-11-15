@@ -1,0 +1,7 @@
+(library
+ (name embedded)
+ (wrapped false)
+ (public_name rpi.embedded)
+ (foreign_stubs
+  (language c)
+  (names rpi_mem)))

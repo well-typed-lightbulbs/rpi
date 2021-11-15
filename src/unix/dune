@@ -1,0 +1,3 @@
+(library
+ (name rpi_unix)
+ (public_name rpi.unix))
