@@ -1,4 +1,8 @@
-include Peripheral
+include Peripheral.Make (struct
+  let base `Rpi4 = Mem.(Mmio.base + 0xB880n)
+
+  let registers_size = 0x30n
+end)
 
 let strf = Format.asprintf
 
@@ -16,8 +20,6 @@ type channel =
 
 let channel_to_int32 : channel -> int32 =
  fun m -> Int32.of_int (Obj.magic (Obj.repr m) : int)
-
-let base `Rpi4 = Mem.(Mmio.base + 0xB880n)
 
 let mbox_read base = Mem.(base + 0x00n)
 

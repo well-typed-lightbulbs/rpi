@@ -1,8 +1,10 @@
-include Peripheral
+include Peripheral.Make (struct
+  let base `Rpi4 = Mem.(Mmio.base + 0x00200000n)
+
+  let registers_size = 0xa0n
+end)
 
 (* GPIO addresses *)
-
-let base `Rpi4 = Mem.(Mmio.base + 0x00200000n)
 
 let gp_sel0 base = Mem.(base + 0x00n)
 

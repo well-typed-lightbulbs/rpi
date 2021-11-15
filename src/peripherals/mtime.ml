@@ -1,12 +1,14 @@
-include Peripheral
+include Peripheral.Make (struct
+  let base `Rpi4 = Mem.(Mmio.base + 0x00003000n)
+
+  let registers_size = 0x08n
+end)
 
 (* Time spans *)
 
 type span_us = int64
 
 (* Passing time *)
-
-let base `Rpi4 = Mem.(Mmio.base + 0x00003000n)
 
 let timer_clo base = Mem.(base + 0x04n)
 

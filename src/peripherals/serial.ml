@@ -1,10 +1,12 @@
-include Peripheral
+include Peripheral.Make (struct
+  let base `Rpi4 = Mem.(Mmio.base + 0x215000n) (*aux base*)
+
+  let registers_size = 0x70n
+end)
 
 (* We define serial as soon as possible so that it's available for
    debugging in this module. *)
 (* UART0 registers *)
-
-let base `Rpi4 = Mem.(Mmio.base + 0x215000n) (*aux base*)
 
 let aux_irq base = Mem.(base + 0x00n)
 

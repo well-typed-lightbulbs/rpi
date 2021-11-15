@@ -1,11 +1,21 @@
+module type Base = sig
+  val base : [< Version.t ] -> Mem.addr
+
+  val registers_size : nativeint
+end
+
 module type S = sig
   type t
 
   val base : [< Version.t ] -> t
 
-  val map : (Mem.addr -> Mem.addr) -> t -> t
+  val map : (size:nativeint -> Mem.addr -> Mem.addr) -> t -> t
 end
 
-type t = Mem.addr
+module Make (Base : Base) = struct
+  include Base
 
-let map fn v = fn v
+  type t = nativeint
+
+  let map fn v = fn ~size:Base.registers_size v
+end
