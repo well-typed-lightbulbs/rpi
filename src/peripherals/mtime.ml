@@ -1,7 +1,7 @@
 include Peripheral.Make (struct
   let base `Rpi4 = Mem.(Mmio.base + 0x00003000n)
 
-  let registers_size = 0x08n
+  let registers_size = 0x1cn
 end)
 
 (* Time spans *)

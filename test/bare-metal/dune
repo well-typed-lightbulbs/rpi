@@ -1,3 +1,17 @@
 (executable
  (name main)
- (libraries rpi))
+ (libraries rpi)
+ (link_flags -cclib "-z rpi4-abi=rpi4"))
+
+(rule
+ (targets kernel8.elf)
+ (mode promote)
+ (action
+  (copy main.exe kernel8.elf)))
+
+(rule
+ (targets kernel8.img)
+ (deps kernel8.elf)
+ (mode promote)
+ (action
+  (run aarch64-linux-gnu-objcopy -O binary kernel8.elf kernel8.img)))

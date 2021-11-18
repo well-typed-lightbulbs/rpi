@@ -73,6 +73,8 @@ static inline void mem_set_u64_bits (uint64_t r, uint64_t bits, uint64_t v)
   mem_set_u64 (r, v);
 }
 
+
+
 /* OCaml stubs */
 
 #include <caml/mlvalues.h>
@@ -91,6 +93,22 @@ value ocamlrpi_barrier_wait (value d)
   return Val_unit;
 }
 
+
+value caml_wait_msec(value caml_n) {
+
+    long int n = Long_val(caml_n);
+
+    register unsigned long f, t, r;
+    // get the current counter frequency
+    asm volatile ("mrs %0, cntfrq_el0" : "=r"(f));
+    // read the current counter
+    asm volatile ("mrs %0, cntpct_el0" : "=r"(t));
+    // calculate expire value for counter
+    t += ((f/1000)*n)/1000;
+    do { asm volatile ("mrs %0, cntpct_el0" : "=r"(r)); } while(r < t);
+
+    return Val_unit;
+}
 /* Reads */
 
 value ocamlrpi_mem_get_byte (value addr)
