@@ -5,11 +5,12 @@
    --------------------------------------------------------------------------*/
 
 #include <stdint.h>
+#include<stdio.h>
 
 /* Memory barriers */
 
-static inline void barrier_dsb (void) { __asm ("dsb sy"); }
-static inline void barrier_dmb (void) { __asm ("dmb sy"); }
+static inline void barrier_dsb (void) { __asm ("dsb"); }
+static inline void barrier_dmb (void) { __asm ("dmb"); }
 static inline void barrier_isb (void) { __asm ("isb"); }
 static inline void barrier_wait (uint32_t d)
 {
@@ -18,55 +19,55 @@ static inline void barrier_wait (uint32_t d)
 
 /* Memory reads */
 
-static inline uint8_t mem_get_u8 (uint64_t r)
+static inline uint8_t mem_get_u8 (uint32_t r)
 {
   return *(volatile uint8_t *)r;
 }
 
-static inline uint32_t mem_get_u32 (uint64_t r)
+static inline uint32_t mem_get_u32 (uint32_t r)
 {
   return *(volatile uint32_t *)r;
 }
 
-static inline uint64_t mem_get_u64 (uint64_t r)
+static inline uint64_t mem_get_u64 (uint32_t r)
 {
   return *(volatile uint64_t *)r;
 }
 
 /* Memory writes */
 
-static inline void mem_set_u8 (uint64_t r, uint8_t v)
+static inline void mem_set_u8 (uint32_t r, uint8_t v)
 {
   *(volatile uint8_t *)r = v;
 }
 
-static inline void mem_set_u32 (uint64_t r, uint32_t v)
+static inline void mem_set_u32 (uint32_t r, uint32_t v)
 {
   *(volatile uint32_t *)r = v;
 }
 
-static inline void mem_set_u64 (uint64_t r, uint64_t v)
+static inline void mem_set_u64 (uint32_t r, uint64_t v)
 {
   *(volatile uint64_t *)r = v;
 }
 
 /* Memory masked writes */
 
-static inline void mem_set_u8_bits (uint64_t r, uint8_t bits, uint8_t v)
+static inline void mem_set_u8_bits (uint32_t r, uint8_t bits, uint8_t v)
 {
   uint8_t current = mem_get_u8 (r);
   v = (current & ~bits) | (v & bits);
   mem_set_u8 (r, v);
 }
 
-static inline void mem_set_u32_bits (uint64_t r, uint32_t bits, uint32_t v)
+static inline void mem_set_u32_bits (uint32_t r, uint32_t bits, uint32_t v)
 {
   uint32_t current = mem_get_u32 (r);
   v = (current & ~bits) | (v & bits);
   mem_set_u32 (r, v);
 }
 
-static inline void mem_set_u64_bits (uint64_t r, uint64_t bits, uint64_t v)
+static inline void mem_set_u64_bits (uint32_t r, uint64_t bits, uint64_t v)
 {
   uint64_t current = mem_get_u64 (r);
   v = (current & ~bits) | (v & bits);
@@ -94,18 +95,20 @@ value ocamlrpi_barrier_wait (value d)
 }
 
 
+#include <unistd.h>
 value caml_wait_msec(value caml_n) {
 
     long int n = Long_val(caml_n);
-
-    register unsigned long f, t, r;
-    // get the current counter frequency
-    asm volatile ("mrs %0, cntfrq_el0" : "=r"(f));
-    // read the current counter
-    asm volatile ("mrs %0, cntpct_el0" : "=r"(t));
-    // calculate expire value for counter
-    t += ((f/1000)*n)/1000;
-    do { asm volatile ("mrs %0, cntpct_el0" : "=r"(r)); } while(r < t);
+//
+//    register unsigned long f, t, r;
+//    // get the current counter frequency
+//    asm volatile ("mrs %0, cntfrq_el0" : "=r"(f));
+//    // read the current counter
+//    asm volatile ("mrs %0, cntpct_el0" : "=r"(t));
+//    // calculate expire value for counter
+//    t += ((f/1000)*n)/1000;
+//    do { asm volatile ("mrs %0, cntpct_el0" : "=r"(r)); } while(r < t);
+  sleep((float)n / 1000000.);
 
     return Val_unit;
 }
@@ -199,7 +202,7 @@ value ocamlrpi_mem_map_byte_length (value ba)
 
 value ocamlrpi_mem_map_base (value ba)
 {
-  return caml_copy_nativeint ((uint64_t)(Caml_ba_data_val (ba)));
+  return caml_copy_nativeint ((uint32_t)(Caml_ba_data_val (ba)));
 }
 
 value ocamlrpi_mem_map_bytes (value addr, value len)

@@ -4,9 +4,4 @@
  (_
   (flags
    (:standard -warn-error -A))))
-
-(context
- (default
-  (name rpi)
-  (toolchain rpi4)
-  (merlin)))
+ 

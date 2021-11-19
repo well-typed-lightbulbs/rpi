@@ -1,4 +1,5 @@
 (library
  (name rpi)
  (public_name rpi)
- (libraries embedded))
+ (preprocess  (pps ppx_bitstring))
+ (libraries embedded bitstring unix))

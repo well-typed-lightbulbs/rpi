@@ -4,4 +4,5 @@
  (public_name rpi.embedded)
  (foreign_stubs
   (language c)
+  (flags --machine=arm -march=armv8-a -mfpu=vfp -mfloat-abi=hard)
   (names rpi_mem)))
