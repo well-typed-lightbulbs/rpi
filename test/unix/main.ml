@@ -1,10 +1,14 @@
-let pwm = Rpi.Pwm.base `Rpi4 |> Rpi.Pwm.map Rpi_unix.mmap
 
-let clock = Rpi.Clock.base `Rpi4 |> Rpi.Clock.map Rpi_unix.mmap
 
-let gpio = Rpi.Gpio.base `Rpi4 |> Rpi.Gpio.map Rpi_unix.mmap
+module Mtime = Rpi.Mtime.Make(Rpi_unix.Make(Rpi.Mtime))
 
-let mtime = Rpi.Mtime.base `Rpi4 |> Rpi.Mtime.map Rpi_unix.mmap
+module Clock = Rpi.Clock.Make(Mtime)(Rpi_unix.Make(Rpi.Clock))
+
+module Gpio = Rpi.Gpio.Make(Rpi_unix.Make(Rpi.Gpio))
+
+module Pwm = Rpi.Pwm.Make(Gpio)(Clock)(Mtime)(Rpi_unix.Make(Rpi.Pwm))
+
+
 
 let () = Printf.printf "Hello\n%!"
 
@@ -55,22 +59,22 @@ let group code =
         let ( * ) = Int32.mul in
         current_number * 2l) (rest, Int.(i+1))
   in
-  Printf.printf "Code: %d\n" (List.length code);
+  Printf.printf "Code: %d\n%!" (List.length code);
   aux [] 0l (code, 0)
 
 
 
 let output data =
-  Rpi.Pwm.init ~mtime ~clock ~gpio pwm;
+  Pwm.init ();
   for i = 0 to Array.length data - 1 do
-    Rpi.Pwm.write pwm  data.(i)
+    Pwm.write data.(i)
   done;
-  Rpi.Pwm.stop pwm
+  Pwm.stop ()
 
 
 let reset = List.init 60 (fun _ -> white) |> pattern_to_code |> group
 
-let pattern = [red; blue; green ] @ (List.init 58 (fun _ -> white))
+let pattern = [red; blue; green ] @ (List.init 57 (fun _ -> white))
 
 let next = function
   | first::next -> next @ [first]
@@ -79,35 +83,8 @@ let next = function
 
 let () =
   let rec loop pattern =
-    output (pattern_to_code pattern |> group |> Array.of_list);
-    Rpi.Mtime.sleep_us mtime 10000L;
+    output (pattern_to_code pattern |> group |> List.map Int32.to_int |> Array.of_list);
+    Mtime.sleep_us 1000000L;
     loop (next pattern)
   in
   loop (pattern)
-
-(* 
-
-
-module Peri = struct
-
-  let base `Rpi4 = Mem.(Mmio.base + 0x20c000n)
-
-  let registers_size = 0x28n
-
-
-  module Make 
-    (B: sig val base : Mem.addr end) = struct
-
-    let blah = B.base 
-
-  end
-
-
-end
-
-module Peri_bare_metal = Peri.Make(struct let base = Peri.base `Rpi4 end)
-
-module Peri_unix = Peri.Make(struct 
-let base = Rpi_unix.mmap ~size:Peri.registers_size (Peri.base `Rpi4) 
-end)
- *)

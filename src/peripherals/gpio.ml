@@ -1,74 +1,117 @@
-include Peripheral.Make (struct
-  let base `Rpi4 = Mem.(Mmio.base + 0x00200000n)
+let base  = Mem.(Mmio.base + 0x00200000n)
 
-  let registers_size = 0xa0n
-end)
+let registers_size = 0xa0n
 
-(* GPIO addresses *)
 
-let gp_sel0 base = Mem.(base + 0x00n)
+module type S = sig
 
-let gp_set0 base = Mem.(base + 0x1Cn)
+  (** GPIO pins.
 
-let gp_set1 base = Mem.(base + 0x20n)
+      {b References}
+      {ul
+      {- {{:https://www.raspberrypi.org/documentation/hardware/raspberrypi/gpio/README.md}GPIO Raspberry Pi documentation}.}
+      {- Section 6 of the {{:https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2835/BCM2835-ARM-Peripherals.pdf}BCM2835 ARM Peripheral specification} (PDF).}} *)
 
-let gp_clr0 base = Mem.(base + 0x28n)
+  (** {1:pins Pins} *)
 
-let gp_clr1 base = Mem.(base + 0x2Cn)
+  type pin = P00 | P01 | P02 | P03 | P04 | P05 | P06 | P07 | P08 | P09 | P10 
+    | P11 | P12 | P13 | P14 | P15 | P16 | P17 | P18 | P19 | P20 | P21 | P22 | P23
+    | P24 | P25 | P26 | P27 | P28 | P29 | P30 | P31 | P32 | P33 | P34 | P35 | P36
+    | P37 | P38 | P39 | P40 | P41 | P42 | P43 | P44 | P45 | P46 | P47 | P48 | P49
+    | P50 | P51 | P52 | P53
+  [@@ocamlformat "disable"]
+  (** The type for GPIO pins. *)
 
-let gp_pud base = Mem.(base + 0x94n)
+  (** {1:setup Pin setup} *)
 
-let gp_pudclk0 base = Mem.(base + 0x98n)
+  (** The type for pin functions. *)
+  type func = F_IN | F_OUT | F_ALT5 | F_ALT4 | F_ALT0 | F_ALT1 | F_ALT2 | F_ALT3
 
-let gp_pudclk1 base = Mem.(base + 0x98n)
+  val set_func :pin -> func -> unit
+  (** [set p func] sets the function of pin [p] to [func]. *)
 
-(* Pins *)
-type pin = P00 | P01 | P02 | P03 | P04 | P05 | P06 | P07 | P08 | P09 | P10 
-  | P11 | P12 | P13 | P14 | P15 | P16 | P17 | P18 | P19 | P20 | P21 | P22 | P23
-  | P24 | P25 | P26 | P27 | P28 | P29 | P30 | P31 | P32 | P33 | P34 | P35 | P36
-  | P37 | P38 | P39 | P40 | P41 | P42 | P43 | P44 | P45 | P46 | P47 | P48 | P49
-  | P50 | P51 | P52 | P53
-[@@ocamlformat "disable"]
+  (** The type for pin pull state. *)
+  type pull_state = PULL_OFF | PULL_DOWN | PULL_UP
 
-let pin_to_int : pin -> int = fun p -> Obj.magic (Obj.repr p)
+  val set_pull_state :pin -> pull_state -> unit
+  (** [set p state] sets the pull state of pin [p] to [state]. *)
 
-(* Setup *)
+  (** {1:rw Read and write} *)
 
-type func = F_IN | F_OUT | F_ALT5 | F_ALT4 | F_ALT0 | F_ALT1 | F_ALT2 | F_ALT3
+  val set :pin -> bool -> unit
+  (** [set p v] sets the value of pin [p] to [v]. *)
 
-let func_to_int : func -> int = fun f -> Obj.magic (Obj.repr f)
+end
 
-let set_func base p f =
-  let p = pin_to_int p in
-  let f = func_to_int f in
-  let r = Mem.offset (gp_sel0 base) (4 * (p / 10)) in
-  let bit_start = p mod 10 * 3 in
-  Mem.set_int_bits r ~bits:(0b111 lsl bit_start) (f lsl bit_start);
-  ()
+module Make(B: Peripheral.Base) = struct
+    
+  (* GPIO addresses *)
 
-type pull_state = PULL_OFF | PULL_DOWN | PULL_UP
+  let gp_sel0 = Mem.(B.base + 0x00n)
 
-let pull_state_to_int : pull_state -> int = fun s -> Obj.magic (Obj.repr s)
+  let gp_set0 = Mem.(B.base + 0x1Cn)
 
-let set_pull_state base p s =
-  let p = pin_to_int p in
-  let s = pull_state_to_int s in
-  let clk, n = if p > 31 then (gp_pudclk1, p land 31) else (gp_pudclk0, p) in
-  Mem.set_int (gp_pud base) s;
-  Mem.wait 150;
-  Mem.set_int (clk base) (1 lsl n);
-  Mem.wait 150;
-  Mem.set_int (gp_pud base) 0;
-  Mem.set_int (clk base) 0;
-  ()
+  let gp_set1 = Mem.(B.base + 0x20n)
 
-(* Read and write *)
+  let gp_clr0 = Mem.(B.base + 0x28n)
 
-let set base p b =
-  let p = pin_to_int p in
-  let r, n =
-    if p > 31 then ((if b then gp_set1 else gp_clr1), p land 31)
-    else ((if b then gp_set0 else gp_clr0), p)
-  in
-  Mem.set_int (r base) (1 lsl n);
-  ()
+  let gp_clr1 = Mem.(B.base + 0x2Cn)
+
+  let gp_pud = Mem.(B.base + 0x94n)
+
+  let gp_pudclk0 = Mem.(B.base + 0x98n)
+
+  let gp_pudclk1 = Mem.(B.base + 0x98n)
+
+  (* Pins *)
+  type pin = P00 | P01 | P02 | P03 | P04 | P05 | P06 | P07 | P08 | P09 | P10 
+    | P11 | P12 | P13 | P14 | P15 | P16 | P17 | P18 | P19 | P20 | P21 | P22 | P23
+    | P24 | P25 | P26 | P27 | P28 | P29 | P30 | P31 | P32 | P33 | P34 | P35 | P36
+    | P37 | P38 | P39 | P40 | P41 | P42 | P43 | P44 | P45 | P46 | P47 | P48 | P49
+    | P50 | P51 | P52 | P53
+  [@@ocamlformat "disable"]
+
+  let pin_to_int : pin -> int = fun p -> Obj.magic (Obj.repr p)
+
+  (* Setup *)
+
+  type func = F_IN | F_OUT | F_ALT5 | F_ALT4 | F_ALT0 | F_ALT1 | F_ALT2 | F_ALT3
+
+  let func_to_int : func -> int = fun f -> Obj.magic (Obj.repr f)
+
+  let set_func p f =
+    let p = pin_to_int p in
+    let f = func_to_int f in
+    let r = Mem.offset (gp_sel0) (4 * (p / 10)) in
+    let bit_start = p mod 10 * 3 in
+    Mem.set_int_bits r ~bits:(0b111 lsl bit_start) (f lsl bit_start);
+    ()
+
+  type pull_state = PULL_OFF | PULL_DOWN | PULL_UP
+
+  let pull_state_to_int : pull_state -> int = fun s -> Obj.magic (Obj.repr s)
+
+  let set_pull_state p s =
+    let p = pin_to_int p in
+    let s = pull_state_to_int s in
+    let clk, n = if p > 31 then (gp_pudclk1, p land 31) else (gp_pudclk0, p) in
+    Mem.set_int (gp_pud) s;
+    Mem.wait 150;
+    Mem.set_int (clk) (1 lsl n);
+    Mem.wait 150;
+    Mem.set_int (gp_pud) 0;
+    Mem.set_int (clk) 0;
+    ()
+
+  (* Read and write *)
+
+  let set p b =
+    let p = pin_to_int p in
+    let r, n =
+      if p > 31 then ((if b then gp_set1 else gp_clr1), p land 31)
+      else ((if b then gp_set0 else gp_clr0), p)
+    in
+    Mem.set_int (r) (1 lsl n);
+    ()
+
+end

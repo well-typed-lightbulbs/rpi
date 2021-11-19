@@ -52,3 +52,7 @@ val get_int : addr -> int
 
 val set_int : addr -> int -> unit
 (** [set a v] sets the 4-lowest bytes starting at address [a] to [v]. *)
+
+val set_int_bits : addr -> bits:int -> int -> unit
+(** [masked_set_int] is like {!set_int} but only affects the bits set
+      in [bits]. *)

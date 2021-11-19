@@ -1,5 +1,9 @@
 include Peripheral.S
 
-val set_pwm_clock : mtime:Mtime.t -> t -> int -> unit
+module type S = sig 
+    val set_pwm_clock : int -> unit
 
-val kill : mtime:Mtime.t -> t -> unit
+    val kill : unit -> unit
+end
+
+module Make(_: Mtime.S)(_: Peripheral.Base) : S

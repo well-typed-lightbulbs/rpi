@@ -1,7 +1,16 @@
 include Peripheral.S
 
-val init : mtime:Mtime.t -> clock:Clock.t -> gpio:Gpio.t -> t -> unit
+module type S = sig 
+    val init : unit -> unit
 
-val write : t -> int32 -> unit
+    val write : int -> unit
 
-val stop : t -> unit
+    val stop : unit -> unit
+end
+
+
+module Make
+    (Gpio: Gpio.S)
+    (Clock: Clock.S)
+    (Mtime: Mtime.S)
+    (_: Peripheral.Base) : S
