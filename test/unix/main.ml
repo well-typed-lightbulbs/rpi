@@ -85,4 +85,29 @@ let () =
   in
   loop (pattern)
 
-(*  *)
+(* 
+
+
+module Peri = struct
+
+  let base `Rpi4 = Mem.(Mmio.base + 0x20c000n)
+
+  let registers_size = 0x28n
+
+
+  module Make 
+    (B: sig val base : Mem.addr end) = struct
+
+    let blah = B.base 
+
+  end
+
+
+end
+
+module Peri_bare_metal = Peri.Make(struct let base = Peri.base `Rpi4 end)
+
+module Peri_unix = Peri.Make(struct 
+let base = Rpi_unix.mmap ~size:Peri.registers_size (Peri.base `Rpi4) 
+end)
+ *)

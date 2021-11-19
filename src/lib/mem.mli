@@ -45,87 +45,10 @@ val isb : unit -> unit
 
 (** {1:reads Reads} *)
 
-val get : addr -> int
-(** [get a] gets the byte at address [a]. *)
-
 val get_int : addr -> int
-(** [get_int a] gets the 4 bytes starting at address [a].
-
-      {b Warning.} Truncates the value of the 32nd bit. *)
-
-val get_int32 : addr -> int32
-(** [get_int32 a] gets the 4 bytes starting at address [a]. *)
-
-val get_int64 : addr -> int64
-(** [get_int64 a] gets the 8 bytes starting at address [a]. *)
+(** [get_int a] gets the 4 bytes starting at address [a].  *)
 
 (** {1:writes Writes} *)
 
-val set : addr -> int -> unit
-(** [set a v] sets the byte at address [a] to [v]. *)
-
 val set_int : addr -> int -> unit
-(** [set a v] sets the 4 bytes starting at address [a] to [v]. *)
-
-val set_int32 : addr -> int32 -> unit
-(** [set a v] sets the 4 bytes starting at address [a] to [v]. *)
-
-val set_int64 : addr -> int64 -> unit
-(** [set a v] sets the 8 bytes starting at address [a] to [v]. *)
-
-(** {1:mask Masked writes} *)
-
-val set_bits : addr -> bits:int -> int -> unit
-(** [set_bits] is like {!set} but only affects the bits set
-      in [bits]. *)
-
-val set_int_bits : addr -> bits:int -> int -> unit
-(** [masked_set_int] is like {!set_int} but only affects the bits set
-      in [bits]. *)
-
-val set_int32_bits : addr -> bits:int32 -> int32 -> unit
-(** [set_int32_bits] is like {!set_int32} but only affects the bits
-      set in [bits]. *)
-
-val set_int64_bits : addr -> bits:int64 -> int64 -> unit
-(** [set_int64_bits] is like {!set_int64} but only affects the bits
-      set in [bits]. *)
-
-val set_int32_pow : addr -> int -> unit
-
-(** {1:map Mapping} *)
-
-(** Memory maps *)
-module Map : sig
-  (** {1 Maps} *)
-
-  type ('a, 'b) t = ('a, 'b, Bigarray.c_layout) Bigarray.Array1.t
-  (** The type for memory maps. *)
-
-  type bytes = (int, Bigarray.int8_unsigned_elt) t
-  (** The type for byte memory maps. *)
-
-  type int32s = (int32, Bigarray.int32_elt) t
-  (** The type for int32 memory maps. *)
-
-  type int64s = (int64, Bigarray.int64_elt) t
-  (** The type for int64 memory maps. *)
-
-  val length : ('a, 'b) t -> int
-  (** [length m] is [m]'s scalar length. *)
-
-  val byte_length : ('a, 'b) t -> int
-  (** [byte_length m] is [m]'s byte length. *)
-
-  val base : ('a, 'b) t -> addr
-  (** [base m] is [m]'s base address. *)
-
-  val bytes : addr -> len:int -> bytes
-  (** [bytes a len] maps [len] bytes starting at [a]. *)
-
-  val int32s : addr -> len:int -> int32s
-  (** [int32s a len] maps [len] int32 values starting at [a]. *)
-
-  val int64s : addr -> len:int -> int64s
-  (** [map_int64 a len] maps [len] int64 values starting at [a]. *)
-end
+(** [set a v] sets the 4-lowest bytes starting at address [a] to [v]. *)

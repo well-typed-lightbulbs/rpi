@@ -56,7 +56,7 @@ let set_pull_state base p s =
   let clk, n = if p > 31 then (gp_pudclk1, p land 31) else (gp_pudclk0, p) in
   Mem.set_int (gp_pud base) s;
   Mem.wait 150;
-  Mem.set_int32_pow (clk base) n;
+  Mem.set_int (clk base) (1 lsl n);
   Mem.wait 150;
   Mem.set_int (gp_pud base) 0;
   Mem.set_int (clk base) 0;
@@ -70,5 +70,5 @@ let set base p b =
     if p > 31 then ((if b then gp_set1 else gp_clr1), p land 31)
     else ((if b then gp_set0 else gp_clr0), p)
   in
-  Mem.set_int32_pow (r base) n;
+  Mem.set_int (r base) (1 lsl n);
   ()

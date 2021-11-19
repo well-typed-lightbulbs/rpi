@@ -1,81 +1,70 @@
+let base `Rpi4 = Mem.(Mmio.base + 0x20c000n)
 
-(*
+let registers_size = 0x28n
 
-module type CtlRegister = sig 
+module Make (*
 
-      type 'a field
-
-      val msen1 : bool field
-
-      val usef1 : bool field
-
-      val mode1 : bool field
-
-      val pwen1 : bool field
-
-      val read : 'a field -> 'a
-
-      type writer
-
-      val empty : writer
-
-      val set : 'a field -> 'a -> writer -> writer 
-
-      val write : writer
-
-    end
-
-module Make(B: sig val base : Mem.addr end) = struct
+  (Gpio: Gpio.S)
+  (Clock: Clock.S)
+  (Mtime: Mtime.S)
+*)
+  (B: sig val base : Mem.addr end) = struct
 
   module Reg = struct
     
     module Ctl = struct
+      include Register.Make(struct let addr = B.base end)
 
-      let addr = B.base
+      let msen1 = bool ~offset:7
 
-      type 'a field = {
-        offset: int;
-        size: int;
-        to_int: 'a -> int32;
-        of_int: int32 -> 'a;
-      }
+      let clrf = bool ~offset:6
 
-      let msen1 = {
-        offset=7;
-        size=1;
-        to_int=(fun x -> if x then 1l else 0l);
-        of_int=(fun x -> x == 1l);
-      }
+      let usef1 = bool ~offset:5
 
+      let mode1 = bool ~offset:1
 
-      let read {offset; size; of_int; _} =
+      let pwen1 = bool ~offset:0
 
-        (* XXbbbXX
-             XXbbb
-             & 111
-               bbb
-                
-         *)
-
-        (Mem.get_int addr lsr offset) land ((1 lsl size - 1)) == 1
-
-
-
-
-
-      
     end
+
+    module Sta = struct
+      include Register.Make(struct let addr = Mem.(B.base + 0x04n) end)
+      
+      let empt1 = bool ~offset:1
+
+      let full1 = bool ~offset:1
+
+    end
+
+    let rng1 = Mem.(B.base + 0x10n)
 
   end
 
 
 
+  let stop () = 
+    while not Reg.Sta.(read empt1) do
+      ()
+    done;
+    Reg.Sta.(write empty)
 
+  let init () =
+    Gpio.(set_pull_state gpio P18 PULL_DOWN);
+    Gpio.(set_func gpio P18 F_ALT5);
 
+    stop ();
+    Clock.kill ~mtime clock;
+    Clock.set_pwm_clock ~mtime clock (3 * 800000);
 
+    
+    Mem.set_int Reg.rng1 32;
+    Reg.Ctl.(empty |> set clrf true |> write);
+    Reg.Ctl.(empty |> set msen1 true |>set usef1 true |> set mode1 true |> write);
+    Mtime.sleep_us 10L;
+    Reg.Ctl.(empty |> set msen1 true |>set usef1 true |> set mode1 true |> set pwen1 true |> write);
 
 end
-*)
+
 
 
 

@@ -8,45 +8,36 @@ let cm_pwmdiv base = Mem.(base + 0xa4n)
 
 let cm_pwmctl base = Mem.(base + 0xa0n)
 
-let (lsl) = Int32.shift_left
+let password = 0x5a lsl 24
 
-let (land) = Int32.logand
-
-let (lor) = Int32.logor
-
-let (/) = Int32.div
-
-let password = 0x5al lsl 24
-
-let pi4_freq = 54000000l
+let pi4_freq = 54000000
 
 
-let div_divi value = (value land 0xfffl) lsl 12
+let div_divi value = (value land 0xfff) lsl 12
 
 let wait_while_busy base=
-while Mem.get_int32 (cm_pwmctl base) land (1l lsl 7) <> 0l do
+while Mem.get_int (cm_pwmctl base) land (1 lsl 7) <> 0 do
   ()
 done
 
 let wait_until_busy base=
-while Mem.get_int32 (cm_pwmctl base) land (1l lsl 7) = 0l do
+while Mem.get_int (cm_pwmctl base) land (1 lsl 7) = 0 do
   ()
 done
 
-let with_password = 
-  Int32.logor password
+let with_password v = password lor v
 
 let set_pwm_clock ~mtime base freq =
-  Mem.(set_int32 (cm_pwmdiv base) (with_password (div_divi (pi4_freq / (Int32.of_int freq)))));
-  Mem.(set_int32 (cm_pwmctl base) (with_password 1l));
+  Mem.(set_int (cm_pwmdiv base) (with_password (div_divi (pi4_freq / freq))));
+  Mem.(set_int (cm_pwmctl base) (with_password 1));
   Mtime.sleep_us mtime 10L;
-  Mem.(set_int32 (cm_pwmctl base) (with_password 1l lor (1l lsl 4)));
+  Mem.(set_int (cm_pwmctl base) (with_password 1 lor (1 lsl 4)));
   wait_until_busy base
 
 let kill ~mtime base =
-  Mem.(set_int32 (cm_pwmctl base) password); (* set zero *)
+  Mem.(set_int (cm_pwmctl base) password); (* set zero *)
   Mtime.sleep_us mtime 10L;
-  Mem.(set_int32 (cm_pwmctl base) (password lor (1l lsl 5))); (* set kill*)
+  Mem.(set_int (cm_pwmctl base) (password lor (1 lsl 5))); (* set kill*)
   wait_while_busy base;
 
 
