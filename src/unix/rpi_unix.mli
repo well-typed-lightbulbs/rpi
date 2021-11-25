@@ -1,3 +1,3 @@
 val mmap : size:nativeint -> Mem.addr -> Mem.addr
 
-module Make(_: Peripheral.S): Peripheral.Base
+module Make (S : Peripheral.S) : S.Base

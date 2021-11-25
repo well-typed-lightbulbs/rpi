@@ -1,8 +1,10 @@
-let base  = Mem.(Mmio.base + 0x00003000n)
+include Peripheral.Make (struct
+  let base = Mem.(Mmio.base + 0x00003000n)
 
-let registers_size = 0x1cn
+  let registers_size = 0x1cn
+end)
 
-module type S = sig 
+module type S = sig
   (** Monotonic time.
 
       [Mtime] gives access to the 64-bit free running system timer
@@ -44,10 +46,9 @@ module type S = sig
 
   val ms_to_us : int64
   (** [ms_to_us] is the number of microseconds in one millisecond. *)
-
 end
 
-module Make(B: Peripheral.Base) = struct 
+module Make (B : Base) = struct
   (* Time spans *)
 
   type span_us = int64
@@ -58,16 +59,16 @@ module Make(B: Peripheral.Base) = struct
 
   let timer_chi = Mem.(B.base + 0x08n)
 
-  let elapsed_us () = 
+  let elapsed_us () =
     let low_32 = Mem.get_int timer_clo in
     let high_32 = Mem.get_int timer_chi in
-    let (lsl) = Int64.shift_left in
-    let (lor) = Int64.logor in
-    ((Int64.of_int high_32) lsl 32) lor (Int64.of_int low_32)
+    let ( lsl ) = Int64.shift_left in
+    let ( lor ) = Int64.logor in
+    (Int64.of_int high_32 lsl 32) lor Int64.of_int low_32
 
   let sleep_us d =
     (* That's a bit wasteful and unprecise because of allocs, FIXME
-      wfi + timer IRQ *)
+       wfi + timer IRQ *)
     let rec loop start =
       let e = Int64.sub (elapsed_us ()) start in
       if Int64.compare e d < 0 then loop start else ()
@@ -87,5 +88,4 @@ module Make(B: Peripheral.Base) = struct
   let s_to_us = 1_000_000L
 
   let ms_to_us = 1_000L
-
 end

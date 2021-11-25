@@ -1,10 +1,10 @@
-let base  = Mem.(Mmio.base + 0x00200000n)
+include Peripheral.Make (struct
+  let base = Mem.(Mmio.base + 0x00200000n)
 
-let registers_size = 0xa0n
-
+  let registers_size = 0xa0n
+end)
 
 module type S = sig
-
   (** GPIO pins.
 
       {b References}
@@ -25,26 +25,32 @@ module type S = sig
   (** {1:setup Pin setup} *)
 
   (** The type for pin functions. *)
-  type func = F_IN | F_OUT | F_ALT5 | F_ALT4 | F_ALT0 | F_ALT1 | F_ALT2 | F_ALT3
+  type func =
+    | F_IN
+    | F_OUT
+    | F_ALT5
+    | F_ALT4
+    | F_ALT0
+    | F_ALT1
+    | F_ALT2
+    | F_ALT3
 
-  val set_func :pin -> func -> unit
+  val set_func : pin -> func -> unit
   (** [set p func] sets the function of pin [p] to [func]. *)
 
   (** The type for pin pull state. *)
   type pull_state = PULL_OFF | PULL_DOWN | PULL_UP
 
-  val set_pull_state :pin -> pull_state -> unit
+  val set_pull_state : pin -> pull_state -> unit
   (** [set p state] sets the pull state of pin [p] to [state]. *)
 
   (** {1:rw Read and write} *)
 
-  val set :pin -> bool -> unit
+  val set : pin -> bool -> unit
   (** [set p v] sets the value of pin [p] to [v]. *)
-
 end
 
-module Make(B: Peripheral.Base) = struct
-    
+module Make (B : Base) = struct
   (* GPIO addresses *)
 
   let gp_sel0 = Mem.(B.base + 0x00n)
@@ -75,14 +81,22 @@ module Make(B: Peripheral.Base) = struct
 
   (* Setup *)
 
-  type func = F_IN | F_OUT | F_ALT5 | F_ALT4 | F_ALT0 | F_ALT1 | F_ALT2 | F_ALT3
+  type func =
+    | F_IN
+    | F_OUT
+    | F_ALT5
+    | F_ALT4
+    | F_ALT0
+    | F_ALT1
+    | F_ALT2
+    | F_ALT3
 
   let func_to_int : func -> int = fun f -> Obj.magic (Obj.repr f)
 
   let set_func p f =
     let p = pin_to_int p in
     let f = func_to_int f in
-    let r = Mem.offset (gp_sel0) (4 * (p / 10)) in
+    let r = Mem.offset gp_sel0 (4 * (p / 10)) in
     let bit_start = p mod 10 * 3 in
     Mem.set_int_bits r ~bits:(0b111 lsl bit_start) (f lsl bit_start);
     ()
@@ -95,12 +109,12 @@ module Make(B: Peripheral.Base) = struct
     let p = pin_to_int p in
     let s = pull_state_to_int s in
     let clk, n = if p > 31 then (gp_pudclk1, p land 31) else (gp_pudclk0, p) in
-    Mem.set_int (gp_pud) s;
+    Mem.set_int gp_pud s;
     Mem.wait 150;
-    Mem.set_int (clk) (1 lsl n);
+    Mem.set_int clk (1 lsl n);
     Mem.wait 150;
-    Mem.set_int (gp_pud) 0;
-    Mem.set_int (clk) 0;
+    Mem.set_int gp_pud 0;
+    Mem.set_int clk 0;
     ()
 
   (* Read and write *)
@@ -111,7 +125,6 @@ module Make(B: Peripheral.Base) = struct
       if p > 31 then ((if b then gp_set1 else gp_clr1), p land 31)
       else ((if b then gp_set0 else gp_clr0), p)
     in
-    Mem.set_int (r) (1 lsl n);
+    Mem.set_int r (1 lsl n);
     ()
-
 end

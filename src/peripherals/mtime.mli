@@ -45,5 +45,4 @@ module type S = sig
 
 end
 
-
-module Make(_: Peripheral.Base) : S
+module Make(_: Base) : S
