@@ -21,7 +21,11 @@ end) : sig
   val set : 'a field -> 'a -> value -> value
 
   val write : value -> unit
+
+  val addr : Mem.addr
 end = struct
+  let addr = B.addr
+
   type 'a field = {
     offset : int;
     size : int;

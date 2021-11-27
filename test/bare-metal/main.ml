@@ -1,28 +1,83 @@
-let pwm = Rpi.Pwm.base `Rpi4
+module Mtime = Rpi.Mtime.Make (Rpi.Mtime)
+module Clock = Rpi.Clock.Make (Mtime) (Rpi.Clock)
+module Gpio = Rpi.Gpio.Make (Rpi.Gpio)
+module Pwm = Rpi.Pwm.Make (Gpio) (Clock) (Mtime) (Rpi.Pwm)
 
-let clock = Rpi.Clock.base `Rpi4
+type color = { r : int; (* 8 bits *)
+                        g : int; (* 8 bits *)
+                                 b : int (* 8 bits *) }
 
-let gpio = Rpi.Gpio.base `Rpi4
-
-let mtime = Rpi.Mtime.base `Rpi4
-
-external sleep_ms : int -> unit = "caml_wait_msec" [@@noalloc]
-
-(*
-let () =
-  Rpi.Pwm.init ~clock ~gpio pwm;
-  let rec loop i =
-    Rpi.Pwm.write pwm i;
-    loop (i + 1)
+let to_bits n =
+  let rec aux acc n = function
+    | 0 -> acc
+    | i -> aux ((n mod 2 == 1) :: acc) (n lsr 1) (i - 1)
   in
-  loop 0
-*)
+  aux [] n 8
+
+let color_to_bits { r; g; b } = to_bits g @ to_bits r @ to_bits b
+
+let code b = if b then [ true; true; false ] else [ true; false; false ]
+
+let color_to_code color = color_to_bits color |> List.map code |> List.flatten
+
+let red = { r = 10; g = 0; b = 0 }
+
+let green = { r = 0; g = 10; b = 0 }
+
+let blue = { r = 0; g = 0; b = 10 }
+
+let black = { r = 0; g = 0; b = 0 }
+
+let white = { r = 1; g = 1; b = 1 }
+
+let pattern_to_code pat = List.map color_to_code pat |> List.flatten
+
+let group code =
+  let rec aux acc current_number = function
+    | [], l -> List.rev (Int32.shift_left current_number (32 - l) :: acc)
+    | rest, 32 -> aux (current_number :: acc) 0l (rest, 0)
+    | true :: rest, i ->
+        aux acc
+          (let ( * ) = Int32.mul in
+           let ( + ) = Int32.add in
+           (current_number * 2l) + 1l)
+          (rest, Int.(i + 1))
+    | false :: rest, i ->
+        aux acc
+          (let ( * ) = Int32.mul in
+           current_number * 2l)
+          (rest, Int.(i + 1))
+  in
+  aux [] 0l (code, 0)
+
+let output data =
+  Pwm.init ();
+  for i = 0 to Array.length data - 1 do
+    Pwm.write data.(i)
+  done;
+  Pwm.stop ()
+
+let reset = List.init 61 (fun _ -> black)
+
+let pattern =
+  List.init 61 (fun i -> { r = i; g = (i + 10) mod 30; b = (i + 20) mod 30 })
+
+let next = function first :: next -> next @ [ first ] | _ -> assert false
+
+let stop = ref false
+
+module Bt = Bluetooth.Make(Mtime)(Bluetooth.UART0(Gpio)(Mtime))
+
 let () =
-  Printf.printf "Hello world !\n%!";
-   Rpi.Gpio.set_func gpio P42 F_OUT;
-  while true do
-    sleep_ms 200_000;
-    Rpi.Gpio.set gpio P42 true;
-    sleep_ms 200_000;
-    Rpi.Gpio.set gpio P42 false
-  done
+  let rec loop pattern =
+    output
+      (pattern_to_code pattern |> group |> List.map Int32.to_int
+     |> Array.of_list);
+    Mtime.sleep_us 10_000L;
+    if !stop then
+      output
+        (pattern_to_code reset |> group |> List.map Int32.to_int
+       |> Array.of_list)
+    else loop (next pattern)
+  in
+  loop pattern

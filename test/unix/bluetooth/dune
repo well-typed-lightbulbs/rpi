@@ -1,0 +1,3 @@
+(executable
+ (name main)
+ (libraries rpi rpi.unix unix rpi.bluetooth))
