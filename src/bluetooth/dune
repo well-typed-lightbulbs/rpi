@@ -1,0 +1,16 @@
+(rule
+ (target libbtfirmware.a)
+ (deps libbtfirmware.o)
+ (action (run aarch64-none-elf-ar rcs %{target} %{deps})))
+
+(rule
+ (target libbtfirmware.o)
+ (deps BCM4345C0.hcd)
+ (action (run aarch64-none-elf-objcopy -I binary -O elf64-littleaarch64 -B aarch64 %{deps} %{target})))
+
+(library
+ (name bluetooth)
+ (public_name rpi.bluetooth)
+ (libraries rpi)
+ (foreign_archives btfirmware)
+ (foreign_stubs (language c) (names stubs)))

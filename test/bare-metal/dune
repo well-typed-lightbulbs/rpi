@@ -1,6 +1,6 @@
 (executable
  (name main)
- (libraries rpi)
+ (libraries rpi rpi.bluetooth)
  (link_flags -cclib "-z rpi4-abi=rpi4"))
 
 (rule
