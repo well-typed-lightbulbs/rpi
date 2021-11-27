@@ -12,7 +12,7 @@ module type S = sig
   val stop : unit -> unit
 end
 
-module Make (Gpio : Gpio.S) (Clock : Clock.S) (Mtime : Mtime.S) (B : Base) =
+module Make (B : Base) (Gpio : Gpio.S) (Clock : Clock.S) (Mtime : Mtime.S) =
 struct
   module Reg = struct
     module Ctl = struct

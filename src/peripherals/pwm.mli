@@ -8,4 +8,4 @@ module type S = sig
   val stop : unit -> unit
 end
 
-module Make (Gpio : Gpio.S) (Clock : Clock.S) (Mtime : Mtime.S) (_ : Base) : S
+module Make (_ : Base) (Gpio : Gpio.S) (Clock : Clock.S) (Mtime : Mtime.S) : S

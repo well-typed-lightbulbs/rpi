@@ -12,7 +12,7 @@ module type S = sig
   val kill : unit -> unit
 end
 
-module Make (Mtime : Mtime.S) (B : Base) = struct
+module Make (B : Base) (Mtime : Mtime.S) = struct
   module Reg = struct
     module Cm_pwmdiv = struct
       include Register.Make (struct

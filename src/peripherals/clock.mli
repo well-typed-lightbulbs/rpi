@@ -6,4 +6,4 @@ module type S = sig
     val kill : unit -> unit
 end
 
-module Make(_: Mtime.S)(_: Base) : S
+module Make(_: Base)(_: Mtime.S) : S
