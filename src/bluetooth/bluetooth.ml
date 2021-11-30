@@ -229,17 +229,27 @@ module Make (Mtime : Rpi.Mtime.S) (UART : UART) = struct
     assert (size < 100000);
     hci_command Vendor Load_firmware empty;
 
+    let last_position = ref (-5.) in
+    let maybe_print position =
+      let percent = 100. *. (Float.of_int position) /. (Float.of_int size) in
+      if percent -. !last_position >= 5. then
+        (Printf.printf "%d/%d (%2.1f%%)\n%!" position size percent;
+        last_position := percent)
+    in
+
     let rec send position =
       if position >= size then ()
       else
+        (maybe_print position;
         let opcode0 = BA.unsafe_get data position in
         let opcode1 = BA.unsafe_get data (position + 1) in
         let length = BA.unsafe_get data (position + 2) in
         let slice = BA.sub data (position + 3) length in
         hci_command_bytes (opcode0, opcode1) slice;
-        send (position + length + 3)
+        send (position + length + 3))
     in
     send 0;
+    Printf.printf "Success: waiting for a sec.\n%!";
     Mtime.sleep_us 1_000_000L
 
   let baudrate =
