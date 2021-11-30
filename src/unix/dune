@@ -1,0 +1,7 @@
+(library
+ (name rpi_unix)
+ (public_name rpi.unix)
+ (foreign_stubs
+  (language c)
+  (names rpi_unix))
+ (libraries embedded))

@@ -1,0 +1,4 @@
+(library
+ (name rpi)
+ (public_name rpi)
+ (libraries embedded))

@@ -1,5 +1,0 @@
-(executable
- (name main)
- (libraries rpi)
- (link_flags -g -w +A-4-41-42-44 -bin-annot -strict-sequence -principal
-   -safe-string -color always -cclib "-z rpi4-abi=rpi4"))

@@ -59,30 +59,3 @@ external set_int32_bits : addr -> bits:int32 -> int32 -> unit
 external set_int64_bits : addr -> bits:int64 -> int64 -> unit
   = "ocamlrpi_mem_set_int64_bits"
   [@@noalloc]
-
-external set_int32_pow : addr -> int -> unit = "ocamlrpi_mem_set_int32_pow"
-  [@@noalloc]
-
-(* Mapping *)
-
-module Map = struct
-  type ('a, 'b) t = ('a, 'b, Bigarray.c_layout) Bigarray.Array1.t
-
-  type bytes = (int, Bigarray.int8_unsigned_elt) t
-
-  type int32s = (int32, Bigarray.int32_elt) t
-
-  type int64s = (int64, Bigarray.int64_elt) t
-
-  let length = Bigarray.Array1.dim
-
-  external byte_length : ('a, 'b) t -> int = "ocamlrpi_mem_map_byte_length"
-
-  external base : ('a, 'b) t -> addr = "ocamlrpi_mem_map_base"
-
-  external bytes : addr -> len:int -> bytes = "ocamlrpi_mem_map_bytes"
-
-  external int32s : addr -> len:int -> int32s = "ocamlrpi_mem_map_int32"
-
-  external int64s : addr -> len:int -> int64s = "ocamlrpi_mem_map_int64"
-end

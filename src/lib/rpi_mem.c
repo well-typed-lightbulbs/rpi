@@ -5,6 +5,7 @@
    --------------------------------------------------------------------------*/
 
 #include <stdint.h>
+#include<stdio.h>
 
 /* Memory barriers */
 
@@ -72,6 +73,8 @@ static inline void mem_set_u64_bits (uint64_t r, uint64_t bits, uint64_t v)
   v = (current & ~bits) | (v & bits);
   mem_set_u64 (r, v);
 }
+
+
 
 /* OCaml stubs */
 
