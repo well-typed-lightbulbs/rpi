@@ -2,112 +2,119 @@
 module BA = Bigarray.Array1
 
 module type UART = sig
-  include Peripheral.S
-
   val read_byte : unit -> int
 
   val write_byte : int -> unit
 end
 
-module UART0 (Gpio : Rpi.Gpio.S) (Mtime : Rpi.Mtime.S) = struct
+module UART0 = struct
   include Peripheral.Make (struct
     let base = Mem.(Mmio.base + 0x201000n)
 
     let registers_size = 0x90n
   end)
 
-  module Reg = struct
-    module Dr = struct
-      include Register.Make (struct
-        let addr = 0x18n
-      end)
+  module Make (Gpio : Rpi.Gpio.S) (Mtime : Rpi.Mtime.S) (B : Base) = struct
+    module Reg = struct
+      module Dr = struct
+        include Register.Make (struct
+          let addr = B.base
+        end)
 
-      let data = int ~offset:0 ~size:8
+        let data = int ~offset:0 ~size:8
+      end
+
+      module Fr = struct
+        include Register.Make (struct
+          let addr = Mem.(B.base + 0x18n)
+        end)
+
+        let receive_fifo_empty = bool ~offset:4
+
+        let transmit_fifo_full = bool ~offset:5
+      end
+
+      module Imsc = struct
+        include Register.Make (struct
+          let addr = Mem.(B.base + 0x38n)
+        end)
+      end
+
+      module Icr = struct
+        include Register.Make (struct
+          let addr = Mem.(B.base + 0x44n)
+        end)
+      end
+
+      module Ibrd = struct
+        include Register.Make (struct
+          let addr = Mem.(B.base + 0x24n)
+        end)
+      end
+
+      module Fbrd = struct
+        include Register.Make (struct
+          let addr = Mem.(B.base + 0x28n)
+        end)
+      end
+
+      module Ifls = struct
+        include Register.Make (struct
+          let addr = Mem.(B.base + 0x34n)
+        end)
+      end
+
+      module Lcrh = struct
+        include Register.Make (struct
+          let addr = Mem.(B.base + 0x2cn)
+        end)
+      end
+
+      module Cr = struct
+        include Register.Make (struct
+          let addr = Mem.(B.base + 0x30n)
+        end)
+      end
     end
 
-    module Fr = struct
-      include Register.Make (struct
-        let addr = 0x18n
-      end)
+    let read_byte () =
+      while Reg.Fr.(read receive_fifo_empty) do
+        ()
+      done;
+      Reg.Dr.(read data)
 
-      let receive_fifo_empty = bool ~offset:4
+    let flushrx () =
+      while not Reg.Fr.(read receive_fifo_empty) do
+        read_byte () |> ignore
+      done
 
-      let transmit_fifo_full = bool ~offset:5
-    end
+    let write_byte byte =
+      while Reg.Fr.(read transmit_fifo_full) do
+        ()
+      done;
+      Reg.Dr.(empty |> set data byte |> write)
 
-    module Imsc = struct
-      include Register.Make (struct
-        let addr = 0x38n
-      end)
-    end
-
-    module Icr = struct
-      include Register.Make (struct
-        let addr = 0x44n
-      end)
-    end
-
-    module Ibrd = struct
-      include Register.Make (struct
-        let addr = 0x24n
-      end)
-    end
-
-    module Fbrd = struct
-      include Register.Make (struct
-        let addr = 0x28n
-      end)
-    end
-
-    module Ifls = struct
-      include Register.Make (struct
-        let addr = 0x34n
-      end)
-    end
-
-    module Lcrh = struct
-      include Register.Make (struct
-        let addr = 0x2cn
-      end)
-    end
-
-    module Cr = struct
-      include Register.Make (struct
-        let addr = 0x30n
-      end)
-    end
+    let init () =
+      (* UART SET UP*)
+      Gpio.set_func P30 F_ALT3;
+      Gpio.set_func P31 F_ALT3;
+      Gpio.set_func P32 F_ALT3;
+      Gpio.set_func P33 F_ALT3;
+      Gpio.set_func P14 F_ALT5;
+      Gpio.set_func P15 F_ALT5;
+      flushrx ();
+      (* TODO: understand what's happening *)
+      Mem.set_int Reg.Imsc.addr 0x00;
+      Mem.set_int Reg.Icr.addr 0x7ff;
+      Mem.set_int Reg.Ibrd.addr 0x1a;
+      Mem.set_int Reg.Fbrd.addr 0x03;
+      Mem.set_int Reg.Ifls.addr 0x08;
+      Mem.set_int Reg.Lcrh.addr 0x70;
+      Mem.set_int Reg.Cr.addr 0xB01;
+      Printf.printf "UART0 READY\n%!";
+      Mem.set_int Reg.Imsc.addr 0x430;
+      Mtime.sleep_us 10_000L
   end
-
-  let read_byte () = Reg.Dr.(read data)
-
-  let flushrx () =
-    while not Reg.Fr.(read receive_fifo_empty) do
-      read_byte () |> ignore
-    done
-
-  let write_byte byte =
-    while Reg.Fr.(read transmit_fifo_full) do
-      ()
-    done;
-    Reg.Dr.(empty |> set data byte |> write)
-
-  let init () =
-    (* UART SET UP*)
-    Gpio.set_func P30 F_ALT3;
-    Gpio.set_func P31 F_ALT3;
-    Gpio.set_func P32 F_ALT3;
-    Gpio.set_func P33 F_ALT3;
-    flushrx ();
-    (* TODO: understand what's happening *)
-    Mem.set_int Reg.Imsc.addr 0x00;
-    Mem.set_int Reg.Icr.addr 0x7ff;
-    Mem.set_int Reg.Ibrd.addr 0x1a;
-    Mem.set_int Reg.Fbrd.addr 0x03;
-    Mem.set_int Reg.Ifls.addr 0x08;
-    Mem.set_int Reg.Lcrh.addr 0x70;
-    Mem.set_int Reg.Cr.addr 0xB01;
-    Mem.set_int Reg.Imsc.addr 0x430;
-    Mtime.sleep_us 10_000L
 end
 
 module Hci = struct
@@ -178,6 +185,13 @@ external bt_get_firmware :
   = "caml_bt_get_firmware"
 
 module Make (Mtime : Rpi.Mtime.S) (UART : UART) = struct
+  let uart_assert_read value =
+    let value' = UART.read_byte () in
+    if value' != value then (
+      Printf.printf "BT assertion failed: got %02x instead of %02x\n%!" value'
+        value;
+      assert false)
+
   let hci_command_bytes (opcodebyte1, opcodebyte2) data =
     let length = BA.size_in_bytes data in
     UART.write_byte Hci.Packet.command;
@@ -188,19 +202,19 @@ module Make (Mtime : Rpi.Mtime.S) (UART : UART) = struct
       let byte = BA.unsafe_get data i in
       UART.write_byte byte
     done;
-    assert (UART.read_byte () == Hci.Packet.event);
+    uart_assert_read Hci.Packet.event;
 
     match UART.read_byte () with
     | v when v = Hci.Event.connect_complete ->
         assert (UART.read_byte () <> 0);
-        assert (UART.read_byte () == opcodebyte1);
-        assert (UART.read_byte () == opcodebyte2)
+        uart_assert_read opcodebyte1;
+        uart_assert_read opcodebyte2
     | v when v = Hci.Event.command_complete ->
-        assert (UART.read_byte () == 4);
+        uart_assert_read 4;
         assert (UART.read_byte () <> 0);
-        assert (UART.read_byte () == opcodebyte1);
-        assert (UART.read_byte () == opcodebyte2);
-        assert (UART.read_byte () == 0)
+        uart_assert_read opcodebyte1;
+        uart_assert_read opcodebyte2;
+        uart_assert_read 0
     | _ -> assert false
 
   let hci_command ogf cmd = hci_command_bytes (Hci.Opcode.v ogf cmd)
@@ -210,10 +224,10 @@ module Make (Mtime : Rpi.Mtime.S) (UART : UART) = struct
   let bt_reset () = hci_command Host_control Reset_chip empty
 
   let bt_load_firmware () =
-    hci_command Vendor Load_firmware empty;
-
     let data = bt_get_firmware () in
     let size = BA.size_in_bytes data in
+    assert (size < 100000);
+    hci_command Vendor Load_firmware empty;
 
     let rec send position =
       if position >= size then ()
@@ -226,7 +240,7 @@ module Make (Mtime : Rpi.Mtime.S) (UART : UART) = struct
         send (position + length + 3)
     in
     send 0;
-    Mtime.sleep_us 100_000L
+    Mtime.sleep_us 1_000_000L
 
   let baudrate =
     (*  little endian, 115200 *)
@@ -284,9 +298,9 @@ module Make (Mtime : Rpi.Mtime.S) (UART : UART) = struct
     [ 0x12; 0x2b; 0x00; 0x01; 0x00 ] |> List.iter UART.write_byte
 
   let set_LE_event_mask mask =
-    (* Set_bdaddr = 0x01: todo *)
-    hci_command Le_control LE_event_mask
-      (BA.of_array Int8_unsigned C_layout [| mask |])
+    let command = BA.create Int8_unsigned C_layout 8 in
+    command.{0} <- mask;
+    hci_command Le_control LE_event_mask command
 
   let set_LE_scan_enable state duplicates =
     (* 0x0c*)
