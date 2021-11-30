@@ -66,8 +66,6 @@ let next = function first :: next -> next @ [ first ] | _ -> assert false
 
 let stop = ref false
 
-module Bt = Bluetooth.Make(Mtime)(Bluetooth.UART0(Gpio)(Mtime))
-
 let () =
   let rec loop pattern =
     output
