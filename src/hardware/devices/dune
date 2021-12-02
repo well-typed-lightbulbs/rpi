@@ -1,0 +1,4 @@
+(library
+ (name rpi_devices)
+ (public_name rpi.devices)
+ (libraries rpi.base))

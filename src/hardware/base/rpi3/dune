@@ -1,0 +1,4 @@
+(library
+ (name rpi_base_rpi3)
+ (public_name rpi.base-rpi3)
+ (implements rpi.base))

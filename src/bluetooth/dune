@@ -55,7 +55,7 @@
 (library
  (name bluetooth)
  (public_name rpi.bluetooth)
- (libraries rpi)
+ (libraries rpi rpi.hardware)
  (enabled_if
   (= %{architecture} arm64))
  (foreign_archives btfirmware)

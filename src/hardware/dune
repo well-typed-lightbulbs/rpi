@@ -1,0 +1,4 @@
+(library
+ (name rpi_hardware)
+ (public_name rpi.hardware)
+ (virtual_modules rpi_hardware))
