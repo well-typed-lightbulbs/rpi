@@ -1,13 +1,14 @@
 (library
- (name rpi_unix)
- (public_name rpi.unix)
+ (name rpi_hardware_unix)
+ (public_name rpi.hardware-unix)
  (enabled_if
   (and
    (= %{architecture} arm64)
    (or
     (= %{context_name} "default")
     (= %{context_name} "rpi4_linux"))))
+ (libraries rpi.devices)
+ (implements rpi.hardware)
  (foreign_stubs
   (language c)
-  (names rpi_unix))
- (libraries embedded))
+  (names rpi_unix)))

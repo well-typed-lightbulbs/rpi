@@ -1,7 +1,4 @@
-module Mtime = Rpi.Mtime.Make (Rpi.Mtime)
-module Clock = Rpi.Clock.Make (Rpi.Clock) (Mtime)
-module Gpio = Rpi.Gpio.Make (Rpi.Gpio)
-module Pwm = Rpi.Pwm.Make (Rpi.Pwm) (Gpio) (Clock) (Mtime)
+open Rpi
 
 type color = { r : int; (* 8 bits *)
                         g : int; (* 8 bits *)
@@ -41,12 +38,12 @@ let group code =
           (let ( * ) = Int32.mul in
            let ( + ) = Int32.add in
            (current_number * 2l) + 1l)
-          (rest, Int.(i + 1))
+          (rest, i + 1)
     | false :: rest, i ->
         aux acc
           (let ( * ) = Int32.mul in
            current_number * 2l)
-          (rest, Int.(i + 1))
+          (rest, i + 1)
   in
   aux [] 0l (code, 0)
 

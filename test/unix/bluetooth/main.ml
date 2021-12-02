@@ -1,9 +1,5 @@
-module Mtime = Rpi.Mtime.Make (Rpi_unix.Make (Rpi.Mtime))
-module Clock = Rpi.Clock.Make (Rpi_unix.Make (Rpi.Clock)) (Mtime)
-module Gpio = Rpi.Gpio.Make (Rpi_unix.Make (Rpi.Gpio))
-module UART =
-  Bluetooth.UART0.Make (Gpio) (Mtime) (Rpi_unix.Make (Bluetooth.UART0))
-module Bluetooth = Bluetooth.Make (Mtime) (UART)
+module UART = Bluetooth.UART0
+module Bluetooth = Bluetooth.Make (UART)
 
 let () =
   Printf.printf "INIT\n%!";

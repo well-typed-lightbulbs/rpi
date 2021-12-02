@@ -4,7 +4,7 @@
   (and
    (= %{architecture} arm64)
    (= %{context_name} "rpi4")))
- (libraries rpi rpi.bluetooth)
+ (libraries rpi rpi.bluetooth rpi.hardware-bare)
  (link_flags -cclib "-z rpi4-abi=rpi4"))
 
 (rule

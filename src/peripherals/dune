@@ -3,4 +3,4 @@
  (public_name rpi)
  (enabled_if
   (= %{architecture} arm64))
- (libraries embedded))
+ (libraries embedded rpi.hardware))
