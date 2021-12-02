@@ -1,16 +1,65 @@
 (rule
  (target libbtfirmware.a)
  (deps libbtfirmware.o)
- (action (run aarch64-none-elf-ar rcs %{target} %{deps})))
+ (enabled_if
+  (or
+   (= %{context_name} "default")
+   (= %{context_name} "rpi4_linux")))
+ (action
+  (run aarch64-linux-gnu-ar rcs %{target} %{deps})))
 
 (rule
  (target libbtfirmware.o)
  (deps BCM4345C0.hcd)
- (action (run aarch64-none-elf-objcopy -I binary -O elf64-littleaarch64 -B aarch64 %{deps} %{target})))
+ (enabled_if
+  (or
+   (= %{context_name} "default")
+   (= %{context_name} "rpi4_linux")))
+ (action
+  (run
+   aarch64-linux-gnu-objcopy
+   -I
+   binary
+   -O
+   elf64-littleaarch64
+   -B
+   aarch64
+   %{deps}
+   %{target})))
+
+(rule
+ (target libbtfirmware.a)
+ (deps libbtfirmware.o)
+ (enabled_if
+  (= %{context_name} "rpi4"))
+ (action
+  (run aarch64-none-elf-ar rcs %{target} %{deps})))
+
+(rule
+ (target libbtfirmware.o)
+ (deps BCM4345C0.hcd)
+ (enabled_if
+  (= %{context_name} "rpi4"))
+ (action
+  (run
+   aarch64-none-elf-objcopy
+   -I
+   binary
+   -O
+   elf64-littleaarch64
+   -B
+   aarch64
+   %{deps}
+   %{target})))
 
 (library
  (name bluetooth)
  (public_name rpi.bluetooth)
  (libraries rpi)
+ (enabled_if
+  (= %{architecture} arm64))
  (foreign_archives btfirmware)
- (foreign_stubs (language c) (names stubs)))
+ (foreign_stubs
+  (language c)
+  (names stubs))
+ (no_dynlink))
