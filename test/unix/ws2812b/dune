@@ -1,3 +1,9 @@
 (executable
  (name main)
+ (enabled_if
+  (and
+   (= %{architecture} arm64)
+   (or
+    (= %{context_name} "default")
+    (= %{context_name} "rpi4_linux"))))
  (libraries rpi rpi.unix unix))

@@ -1,7 +1,7 @@
 module Mtime = Rpi.Mtime.Make (Rpi.Mtime)
-module Clock = Rpi.Clock.Make (Mtime) (Rpi.Clock)
+module Clock = Rpi.Clock.Make (Rpi.Clock) (Mtime)
 module Gpio = Rpi.Gpio.Make (Rpi.Gpio)
-module Pwm = Rpi.Pwm.Make (Gpio) (Clock) (Mtime) (Rpi.Pwm)
+module Pwm = Rpi.Pwm.Make (Rpi.Pwm) (Gpio) (Clock) (Mtime)
 
 type color = { r : int; (* 8 bits *)
                         g : int; (* 8 bits *)

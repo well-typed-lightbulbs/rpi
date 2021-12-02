@@ -231,16 +231,16 @@ module Make (Mtime : Rpi.Mtime.S) (UART : UART) = struct
 
     let last_position = ref (-5.) in
     let maybe_print position =
-      let percent = 100. *. (Float.of_int position) /. (Float.of_int size) in
-      if percent -. !last_position >= 5. then
-        (Printf.printf "%d/%d (%2.1f%%)\n%!" position size percent;
+      let percent = 100. *. Float.of_int position /. Float.of_int size in
+      if percent -. !last_position >= 5. then (
+        Printf.printf "%d/%d (%2.1f%%)\n%!" position size percent;
         last_position := percent)
     in
 
     let rec send position =
       if position >= size then ()
-      else
-        (maybe_print position;
+      else (
+        maybe_print position;
         let opcode0 = BA.unsafe_get data position in
         let opcode1 = BA.unsafe_get data (position + 1) in
         let length = BA.unsafe_get data (position + 2) in

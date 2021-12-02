@@ -1,6 +1,12 @@
 (library
  (name rpi_unix)
  (public_name rpi.unix)
+ (enabled_if
+  (and
+   (= %{architecture} arm64)
+   (or
+    (= %{context_name} "default")
+    (= %{context_name} "rpi4_linux"))))
  (foreign_stubs
   (language c)
   (names rpi_unix))

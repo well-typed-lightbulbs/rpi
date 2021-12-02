@@ -2,6 +2,8 @@
  (name embedded)
  (wrapped false)
  (public_name rpi.embedded)
+ (enabled_if
+  (= %{architecture} arm64))
  (foreign_stubs
   (language c)
   (names rpi_mem)))
