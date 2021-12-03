@@ -1,11 +1,16 @@
-
 open Rpi
+
+(* some docs:
+   http://software-dl.ti.com/simplelink/esd/simplelink_cc13x2_sdk/1.60.00.29_new/exports/docs/ble5stack/vendor_specific_guide/BLE_Vendor_Specific_HCI_Guide/hci_interface.html
+*)
 
 (* cstruct ? *)
 module BA = Bigarray.Array1
 
 module type UART = sig
   val read_byte : unit -> int
+
+  val read_byte_ready : unit -> bool
 
   val write_byte : int -> unit
 end
@@ -75,6 +80,8 @@ module UART0 = struct
     end
   end
 
+  let read_byte_ready () = not Reg.Fr.(read receive_fifo_empty)
+
   let read_byte () =
     while Reg.Fr.(read receive_fifo_empty) do
       ()
@@ -130,41 +137,113 @@ module Hci = struct
   end
 
   module Opcode = struct
-    type ogf = Host_control | Le_control | Vendor
+    module LE = struct
+      let ogf = 8
+
+      [%%cenum
+      type t =
+        | NULL
+        | Set_event_mask
+        | Read_buffer_size
+        | Read_local_supported_features
+        | NULL2
+        | Set_random_address
+        | Set_advertising_parameters
+        | Read_advertising_channel_tx_power
+        | Set_advertising_data
+        | Set_scan_response_data
+        | Set_advertise_enable
+        | Set_scan_parameters
+        | Set_scan_enable
+        | Create_connection
+        | Create_connection_cancel
+        | Read_white_list_size
+        | Clear_white_lis
+        | Add_device_to_white_list
+        | Remove_device_from_white_list
+        | Connection_update
+        | Set_host_channel_classification
+        | Read_channel_map
+        | Read_remote_used_features
+        | Encrypt
+        | Rand
+        | Start_encryption
+        | Long_term_key_requested_reply
+        | Long_term_key_requested_negative_reply
+        | Read_supported_states
+        | Receiver_test
+        | Transmitter_test
+        | Test_end_command
+        | Remote_connection_parameter_request_reply
+        | Remote_connection_parameter_request_negative_reply
+        | Set_data_length
+        | Read_suggested_default_data_length
+        | Write_suggested_default_data_length
+        | Read_local_p256_public_key
+        | Generate_dhkey
+        | Add_device_to_resolving_list
+        | Remove_device_from_resolving_list
+        | Clear_resolving_list
+        | Read_resolving_list_size
+        | Read_peer_resolvable_address
+        | Read_local_resolvable_address
+        | Set_address_resolution_enable
+        | Set_resolvable_private_address_timeout
+        | Read_maximum_data_length
+      [@@uint32_t]]
+
+      let () = assert (t_to_int Set_event_mask = 1l)
+
+      let () = assert (t_to_int Read_maximum_data_length = 47l)
+    end
+
+    module OGF1 = struct
+      let ogf = 1
+
+      [%%cenum
+      type t = Disconnect [@id 6] | Read_remote_version_information [@id 29]
+      [@@uint32_t]]
+    end
+
+    module Host_control = struct
+      let ogf = 1
+
+      [%%cenum
+      type t =
+        | Set_event_mask [@id 1]
+        | Reset [@id 3]
+        | Read_transmit_power_level [@id 45]
+        | Set_control_to_host_flow_control [@id 49]
+        | Host_buffer_size [@id 51]
+        | Host_number_of_completed_packets [@id 53]
+        | Set_event_mask_page [@id 63]
+      [@@uint32_t]]
+    end
+
+    module Vendor = struct
+      let ogf = 0x3f
+
+      [%%cenum
+      type t =
+        | Set_bdaddr [@id 0x01]
+        | Set_baud [@id 0x18]
+        | Load_firmware [@id 0x2e]
+      [@@uint32_t]]
+    end
 
     type cmd =
-      | Set_bdaddr
-      | Reset_chip
-      | Set_baud
-      | Load_firmware
-      | LE_scan_enable
-      | LE_event_mask
-      | LE_scan_parameters
-      | LE_advert_enable
-      | LE_advert_parameters
-      | LE_advert_data
-      | LE_connect
+      | Host_control of Host_control.t
+      | LE_control of LE.t
+      | Vendor of Vendor.t
 
-    let ogf_to_int = function
-      | Host_control -> 0x03
-      | Le_control -> 0x08
-      | Vendor -> 0x3f
-
-    let cmd_to_int = function
-      | Set_bdaddr -> 0x01
-      | Reset_chip -> 0x03
-      | Set_baud -> 0x18
-      | Load_firmware -> 0x2e
-      | LE_event_mask -> 0x01
-      | LE_scan_enable -> 0x0c
-      | LE_scan_parameters -> 0x0b
-      | LE_advert_enable -> 0x0a
-      | LE_advert_parameters -> 0x06
-      | LE_advert_data -> 0x08
-      | LE_connect -> 0x0d
-
-    let v ogf cmd =
-      let opcode = (ogf_to_int ogf lsl 10) lor cmd_to_int cmd in
+    let v cmd =
+      let ogf, ogc =
+        match cmd with
+        | Host_control hc -> (Host_control.ogf, Host_control.t_to_int hc)
+        | LE_control hc -> (LE.ogf, LE.t_to_int hc)
+        | Vendor hc -> (Vendor.ogf, Vendor.t_to_int hc)
+      in
+      let opcode = (ogf lsl 10) lor Int32.to_int ogc in
       let b_hi = (opcode lsr 8) land 0xff in
       let b_lo = opcode land 0xff in
       (b_lo, b_hi)
@@ -214,17 +293,17 @@ module Make (UART : UART) = struct
         uart_assert_read 0
     | _ -> assert false
 
-  let hci_command ogf cmd = hci_command_bytes (Hci.Opcode.v ogf cmd)
+  let hci_command cmd = hci_command_bytes (Hci.Opcode.v cmd)
 
   let empty = BA.create Int8_unsigned C_layout 0
 
-  let bt_reset () = hci_command Host_control Reset_chip empty
+  let bt_reset () = hci_command Hci.Opcode.(Host_control Reset) empty
 
   let bt_load_firmware () =
     let data = bt_get_firmware () in
     let size = BA.size_in_bytes data in
     assert (size < 100000);
-    hci_command Vendor Load_firmware empty;
+    hci_command Hci.Opcode.(Vendor Load_firmware) empty;
 
     let last_position = ref (-5.) in
     let maybe_print position =
@@ -253,12 +332,12 @@ module Make (UART : UART) = struct
     (*  little endian, 115200 *)
     BA.of_array Int8_unsigned C_layout [| 0; 0; 0; 0xc2; 0x01; 0x00 |]
 
-  let bt_setbaud () = hci_command Vendor Set_baud baudrate
+  let bt_setbaud () = hci_command Hci.Opcode.(Vendor Set_baud) baudrate
 
   let bdaddr =
     BA.of_array Int8_unsigned C_layout [| 0xee; 0xff; 0xc0; 0xee; 0xff; 0xc0 |]
 
-  let bt_setbdaddr () = hci_command Vendor Set_bdaddr bdaddr
+  let bt_setbdaddr () = hci_command Hci.Opcode.(Vendor Set_bdaddr) bdaddr
 
   let bt_getbdaddr () =
     UART.write_byte Hci.Packet.command;
@@ -307,16 +386,18 @@ module Make (UART : UART) = struct
   let set_LE_event_mask mask =
     let command = BA.create Int8_unsigned C_layout 8 in
     command.{0} <- mask;
-    hci_command Le_control LE_event_mask command
+    hci_command Hci.Opcode.(LE_control Set_event_mask) command
 
   let set_LE_scan_enable state duplicates =
     (* 0x0c*)
-    hci_command Le_control LE_scan_enable
+    hci_command
+      Hci.Opcode.(LE_control Set_scan_enable)
       (BA.of_array Int8_unsigned C_layout [| state; duplicates |])
 
   let set_LE_scan_parameters type_ linterval hinterval lwindow hwindow
       own_address_type filter_policy =
-    hci_command Le_control LE_scan_parameters
+    hci_command
+      Hci.Opcode.(LE_control Set_scan_parameters)
       (BA.of_array Int8_unsigned C_layout
          [|
            type_;
@@ -329,12 +410,14 @@ module Make (UART : UART) = struct
          |])
 
   let set_LE_advert_enable state =
-    hci_command Le_control LE_advert_enable
+    hci_command
+      Hci.Opcode.(LE_control Set_advertise_enable)
       (BA.of_array Int8_unsigned C_layout [| state |])
 
   let set_LE_advert_parameters type_ linterval_min hinterval_min linterval_max
       hinterval_max own_address_type filter_policy =
-    hci_command Le_control LE_advert_parameters
+    hci_command
+      Hci.Opcode.(LE_control Set_advertising_parameters)
       (BA.of_array Int8_unsigned C_layout
          [|
            linterval_min;
@@ -369,7 +452,7 @@ module Make (UART : UART) = struct
 
   let set_LE_advert_data () =
     let data = BA.of_array Int8_unsigned C_layout advert_data in
-    hci_command Le_control LE_advert_data data
+    hci_command Hci.Opcode.(LE_control Set_advertising_data) data
 
   let stop_scanning () = set_LE_scan_enable 0 0
 
@@ -428,5 +511,106 @@ module Make (UART : UART) = struct
     command.{19} <- 0x2a;
     command.{20} <- 0x00;
 
-    hci_command Le_control LE_connect command
+    hci_command Hci.Opcode.(LE_control Create_connection) command
+
+  type hci_state = {
+    mutable data_buf : bytes;
+    mutable poll_state : int;
+    mutable messages_received : int;
+    mutable data_len : int;
+  }
+
+
+  let le_event_code = 0x3e
+
+  let le_connect_code = 0x01
+
+  let le_adreport_code = 0x02
+
+  let hci_acl_pkt = 0x02
+
+  let hci_event_pkt = 0x04
+
+  let hci_state =
+    {
+      data_buf = Bytes.empty;
+      data_len = 0;
+      poll_state = 0;
+      messages_received = 0;
+    }
+
+  let max_msg_len = 50
+
+  let hci_poll2 byte =
+    match hci_state.poll_state with
+    | 0 ->
+        if byte != hci_event_pkt then hci_state.poll_state <- 0
+        else hci_state.poll_state <- 1
+    | 1 ->
+        if byte != le_event_code then hci_state.poll_state <- 0
+        else hci_state.poll_state <- 2
+    | 2 ->
+        if byte > max_msg_len then hci_state.poll_state <- 0
+        else (
+          hci_state.poll_state <- 3;
+          hci_state.data_len <- byte;
+          hci_state.data_buf <- Bytes.make byte '\000')
+    | _ ->
+        hci_state.data_buf.[hci_state.poll_state - 3] <- Char.chr byte;
+        if hci_state.poll_state = hci_state.data_len + 3 - 1 then (
+          hci_state.messages_received <- hci_state.messages_received + 1;
+          hci_state.poll_state <- 0)
+        else hci_state.poll_state <- hci_state.poll_state + 1
+
+  let max_read_run = 100
+
+  let hci_poll () =
+    let goal = hci_state.messages_received + 1 in
+    if UART.read_byte_ready () then
+      let rec loop i =
+        if i > max_read_run || not (UART.read_byte_ready ()) then None
+        else (
+          hci_poll2 (UART.read_byte ());
+          if hci_state.messages_received = goal then Some hci_state.data_buf
+          else loop (i + 1))
+      in
+      loop 0
+    else None
+
+  
+    type connect_state = {
+      got_echo_sid : bool;
+      got_echo_name : bool;
+      echo_addr : string;
+      connected : bool;
+      connection_handle : int;
+    }
+
+  let bt_search () =
+    while true do
+      match hci_poll () with 
+      | None -> ()
+      | Some buf -> 
+        if Bytes.get buf 0 = (Char.chr le_adreport_code) then
+          if Bytes.get buf 1 = Char.chr 1 then
+            if Bytes.get buf 0 = Char.chr 0 then 
+              let ad_len = Bytes.get buf 11 in
+              ()
+    done
+
+
+    
+
+
+    
+
+ 
+let bt_conn () = 
+  while true do
+    match hci_poll () with 
+    | None  -> ()
+    | Some buf ->
+      if !connect_state.connected && hci_state.data_len >=2 && (Bytes.get )
+
+  
 end

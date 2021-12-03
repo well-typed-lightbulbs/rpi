@@ -1,3 +1,6 @@
 _build/
 kernel8.elf
 kernel8.img
+duniverse/
+dune-workspace
+rpi-bluetooth.opam.locked

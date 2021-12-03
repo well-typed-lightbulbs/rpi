@@ -62,4 +62,5 @@
  (foreign_stubs
   (language c)
   (names stubs))
- (no_dynlink))
+ (no_dynlink)
+ (preprocess (pps ppx_cstruct)))
