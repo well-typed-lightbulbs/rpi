@@ -26,7 +26,7 @@ val sleep_us : span_us -> unit
 type counter
 (** The type for counters. *)
 
-val counter : counter
+val counter : unit -> counter
 (** [counter ()] is a counter counting from call time on. *)
 
 val counter_value_us : counter -> span_us
