@@ -1,0 +1,6 @@
+(library
+ (name ws2812b)
+ (public_name rpi.ws2812b)
+ (enabled_if
+  (= %{architecture} arm64))
+ (libraries rpi))

@@ -6,4 +6,4 @@
    (or
     (= %{context_name} "default")
     (= %{context_name} "rpi4_linux"))))
- (libraries rpi unix rpi.hardware-unix))
+ (libraries rpi rpi.ws2812b unix rpi.hardware-unix))
