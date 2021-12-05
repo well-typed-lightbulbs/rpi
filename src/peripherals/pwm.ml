@@ -30,10 +30,13 @@ module Reg = struct
   let rng1 = Mem.(base + 0x10n)
 end
 
-let stop () =
+let flush () =
   while not Reg.Sta.(read empt1) do
     ()
-  done;
+  done
+
+let stop () =
+  flush ();
   Reg.Ctl.(write empty)
 
 let init () =
