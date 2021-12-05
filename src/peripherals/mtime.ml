@@ -30,7 +30,7 @@ let sleep_us d =
 
 type counter = span_us
 
-let counter = elapsed_us ()
+let counter = elapsed_us
 
 let counter_value_us c = Int64.sub (elapsed_us ()) c
 
