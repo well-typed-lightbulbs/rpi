@@ -1,78 +1,50 @@
 open Rpi
 
-type color = { r : int; (* 8 bits *)
-                        g : int; (* 8 bits *)
-                                 b : int (* 8 bits *) }
+let reset_frame =
+  List.init 361 (fun _ -> { Ws2812b.r = 0; g = 0; b = 0 }) |> Ws2812b.encode
 
-let to_bits n =
-  let rec aux acc n = function
-    | 0 -> acc
-    | i -> aux ((n mod 2 == 1) :: acc) (n lsr 1) (i - 1)
-  in
-  aux [] n 8
-
-let color_to_bits { r; g; b } = to_bits g @ to_bits r @ to_bits b
-
-let code b = if b then [ true; true; false ] else [ true; false; false ]
-
-let color_to_code color = color_to_bits color |> List.map code |> List.flatten
-
-let red = { r = 10; g = 0; b = 0 }
-
-let green = { r = 0; g = 10; b = 0 }
-
-let blue = { r = 0; g = 0; b = 10 }
-
-let black = { r = 0; g = 0; b = 0 }
-
-let white = { r = 1; g = 1; b = 1 }
-
-let pattern_to_code pat = List.map color_to_code pat |> List.flatten
-
-let group code =
-  let rec aux acc current_number = function
-    | [], l -> List.rev (Int32.shift_left current_number (32 - l) :: acc)
-    | rest, 32 -> aux (current_number :: acc) 0l (rest, 0)
-    | true :: rest, i ->
-        aux acc
-          (let ( * ) = Int32.mul in
-           let ( + ) = Int32.add in
-           (current_number * 2l) + 1l)
-          (rest, i + 1)
-    | false :: rest, i ->
-        aux acc
-          (let ( * ) = Int32.mul in
-           current_number * 2l)
-          (rest, i + 1)
-  in
-  aux [] 0l (code, 0)
-
-let output data =
-  Pwm.init ();
-  for i = 0 to Array.length data - 1 do
-    Pwm.write data.(i)
-  done;
-  Pwm.stop ()
-
-let reset = List.init 61 (fun _ -> black)
+let cut = 16
 
 let pattern =
-  List.init 61 (fun i -> { r = i; g = (i + 10) mod 30; b = (i + 20) mod 30 })
+  List.init 361 (fun i ->
+      if i / cut mod 2 = 0 then
+        if i mod 2 = 1 && abs ((cut / 2) - (i mod cut)) < 3 * cut / 12 then
+          { Ws2812b.r = 45; b = 50; g = 0 }
+        else { r = 0; g = 0; b = 0 }
+      else
+        let mode = i / cut in
+        let pos = abs ((cut / 2) - (i mod cut)) in
+        { r = 0; g = 30 - pos; b = 30 + (mode / 2 * pos) })
 
 let next = function first :: next -> next @ [ first ] | _ -> assert false
 
-let stop = ref false
+let entropy = 15
+
+let detropy = 2
+
+let noise (target : Ws2812b.color) { Ws2812b.r; g; b } =
+  let sample delta =
+    if Random.bool () then
+      if delta < 0 then max (-detropy) delta else min detropy delta
+    else if delta < 0 then -entropy
+    else entropy
+  in
+  let clip v = if v < 1 then 1 else if v > 255 then 255 else v in
+  {
+    Ws2812b.r = (if r = 0 then 0 else clip (sample (target.r - r) + r));
+    g = (if g = 0 then 0 else clip (sample (target.g - g) + g));
+    b = (if b = 0 then 0 else clip (sample (target.b - b) + b));
+  }
 
 let () =
-  let rec loop pattern =
-    output
-      (pattern_to_code pattern |> group |> List.map Int32.to_int
-     |> Array.of_list);
-    Mtime.sleep_us 10_000L;
-    if !stop then
-      output
-        (pattern_to_code reset |> group |> List.map Int32.to_int
-       |> Array.of_list)
-    else loop (next pattern)
+  let c = 0 in
+  let rec loop (pattern, target) c =
+    let counter = Mtime.counter () in
+    Ws2812b.output (Ws2812b.encode (pattern |> List.rev));
+    let offset = Mtime.counter_value_us counter in
+    Mtime.sleep_us (Int64.sub 32_000L offset);
+    (* 60 FPS *)
+    let pattern = next pattern |> List.map2 noise target in
+    loop (pattern, next target) (c + 1)
   in
-  loop pattern
+  loop (pattern, pattern) c
