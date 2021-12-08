@@ -46,10 +46,11 @@ let () =
     let counter = Mtime.counter () in
     Ws2812b.output (Ws2812b.encode (pattern |> List.rev));
     let offset = Mtime.counter_value_us counter in
-    Mtime.sleep_us (Int64.sub 32_000L offset);
+    Mtime.sleep_us (Int64.sub 16_000L offset);
     (* 60 FPS *)
     if !stop then Ws2812b.output reset_frame
     else
+      let next = if c mod 6 = 0 then next else Fun.id in
       let pattern = next pattern |> List.map2 noise target in
       loop (pattern, next target) (c + 1)
   in
