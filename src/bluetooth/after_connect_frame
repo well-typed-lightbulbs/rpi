@@ -1,0 +1,26 @@
+
+VENDOR SPECIFIC EVENT
+<04><ff>
+ <05> length 5
+  <55><00><00><40><00>
+
+<04><3e> LE META
+ <0b> length 11
+  <07> Data length change
+   <40><00>
+   <1b><00> max TX octets
+   <48><01> max TX time
+   <fb><00> max RX octets 
+   <48><08> max RX time
+
+<02> ACL data packet
+ <40><20> handle
+ <07><00> length 7
+ <03><00><04><00><02><00><01> L2CAP data
+
+Disconnection complete
+<04><05>
+ <04> length 5
+  <00> Disconnection has occurred
+  <40><00> Handle
+  <13> Reason
