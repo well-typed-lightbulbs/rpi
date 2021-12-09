@@ -1,0 +1,9 @@
+(library
+ (name hci)
+ (public_name rpi.bluetooth.hci)
+ (libraries rpi rpi.hardware faraday)
+ (enabled_if
+  (= %{architecture} arm64))
+ (no_dynlink)
+ (preprocess
+  (pps ppx_cstruct)))

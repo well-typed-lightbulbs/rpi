@@ -1,0 +1,9 @@
+(library
+ (name LE)
+ (public_name rpi.bluetooth.le)
+ (libraries rpi rpi.hardware rpi.bluetooth.hci)
+ (enabled_if
+  (= %{architecture} arm64))
+ (no_dynlink)
+ (preprocess
+  (pps ppx_cstruct)))
