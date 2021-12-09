@@ -1,0 +1,9 @@
+(library
+ (name l2cap)
+ (public_name rpi.bluetooth.l2cap)
+ (libraries rpi rpi.hardware)
+ (enabled_if
+  (= %{architecture} arm64))
+ (no_dynlink)
+ (preprocess
+  (pps ppx_cstruct)))
