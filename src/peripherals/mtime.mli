@@ -39,3 +39,5 @@ val s_to_us : int64
 
 val ms_to_us : int64
 (** [ms_to_us] is the number of microseconds in one millisecond. *)
+
+val timer_1_set : int -> unit

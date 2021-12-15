@@ -8,3 +8,4 @@ val pwm : nativeint
 
 val uart0 : nativeint
 
+val armcore_irq_controller : nativeint

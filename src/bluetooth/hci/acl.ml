@@ -1,8 +1,21 @@
 let id = 0x02
 
-type t = { handle : int; data : Cstruct.t }
+type 'a handler = {
+  read : Cstruct.t -> 'a;
+  write : 'a -> Cstruct.t -> unit;
+  size : 'a -> int;
+}
 
-let read ~get_byte : t =
+let raw =
+  {
+    read = Fun.id;
+    write = (fun src dst -> Cstruct.blit src 0 dst 0 (Cstruct.length src));
+    size = Cstruct.length;
+  }
+
+type 'a t = { handle : int; data : 'a }
+
+let read ~get_byte v =
   let handle =
     let handle_lo = get_byte () in
     let handle_hi = get_byte () in
@@ -13,17 +26,16 @@ let read ~get_byte : t =
     let length_hi = get_byte () in
     length_lo lor (length_hi lsl 8)
   in
-  let data = Cstruct.create_unsafe length in
+  let buffer = Cstruct.create_unsafe length in
   for i = 0 to length - 1 do
-    Cstruct.set_uint8 data i (get_byte ())
+    Cstruct.set_uint8 buffer i (get_byte ())
   done;
-  { handle; data }
+  { handle; data = v.read buffer }
 
-let size { data; _ } = Cstruct.length data + 4
+let size { size; _ } { data; _ } = size data + 4
 
-let write { data; handle } buffer =
-  let size = Cstruct.length data in
+let write { write; size; _ } { data; handle } buffer =
+  let size = size data in
   Cstruct.LE.set_uint16 buffer 0 handle;
   Cstruct.LE.set_uint16 buffer 2 size;
-  Cstruct.blit data 0 buffer 4 size
-
+  write data (Cstruct.sub buffer 4 size)
