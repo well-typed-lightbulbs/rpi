@@ -1,0 +1,6 @@
+(library
+ (name OS)
+ (public_name rpi.os)
+ (enabled_if
+  (= %{architecture} arm64))
+ (libraries rpi rpi.hardware lwt bheap duration))
