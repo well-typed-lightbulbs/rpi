@@ -6,26 +6,30 @@ module Packet = struct
   module Event = Event
 end
 
-type 'a expect = Event of 'a Packet.Event.handler | Acl : Acl.t expect
+type 'a expect =
+  | Event of 'a Packet.Event.handler
+  | Acl : 'a Acl.handler -> 'a Acl.t expect
 
-type any = Event of Event.t | Acl of Acl.t
+type any = Event of Event.t | Acl of Cstruct.t Acl.t
 
 exception Unexpected of int
 
 let wait ~get_byte =
   let id = get_byte () in
   if id == Packet.Event.id then Event (Packet.Event.read ~get_byte)
-  else if id == Packet.ACL.id then Acl (Packet.ACL.read ~get_byte)
+  else if id == Packet.ACL.id then Acl (Acl.read ~get_byte Acl.raw)
   else raise (Unexpected id)
 
 let expect ~get_byte (type a) (v : a expect) : a =
   let id = get_byte () in
   match v with
   | Event e when id == Packet.Event.id -> Packet.Event.expect ~get_byte e
-  | Acl when id == Packet.Event.id -> Packet.ACL.read ~get_byte
+  | Acl a when id == Packet.Event.id -> Packet.ACL.read ~get_byte a
   | _ -> raise (Unexpected id)
 
-type 'a write = Acl : Acl.t write | Command of 'a Command.command
+type 'a write =
+  | Acl : 'a Acl.handler -> 'a Acl.t write
+  | Command of 'a Command.command
 
 let write ~write_byte (type a) (w : a write) (v : a) : unit =
   let buffer =
@@ -36,18 +40,17 @@ let write ~write_byte (type a) (w : a write) (v : a) : unit =
         Cstruct.set_uint8 buffer 0 Command.id;
         Command.write cmd v (Cstruct.sub buffer 1 cmd_size);
         buffer
-    | Acl ->
-        let cmd_size = Acl.size v in
+    | Acl h ->
+        let cmd_size = Acl.size h v in
         let buffer = Cstruct.create (1 + cmd_size) in
         Cstruct.set_uint8 buffer 0 Acl.id;
-        Acl.write v (Cstruct.sub buffer 1 cmd_size);
+        Acl.write h v (Cstruct.sub buffer 1 cmd_size);
         buffer
   in
   for i = 0 to Cstruct.length buffer - 1 do
     let byte = Cstruct.get_uint8 buffer i in
     write_byte byte
   done
-
 
 module LL = struct
   let scan_active = 0x01

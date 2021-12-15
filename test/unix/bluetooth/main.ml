@@ -3,8 +3,7 @@ module Bluetooth = Bluetooth.Make (UART)
 
 let print_bdaddr () =
   Bluetooth.bt_getbdaddr ()
-  |> Result.map (Bytes.iter (fun c -> Char.code c |> Printf.printf "%2x"))
-  |> ignore;
+  |> String.iter (fun c -> Char.code c |> Printf.printf "%02x");
   Printf.printf "\n%!"
 
 let setup () =
@@ -45,11 +44,26 @@ let () =
            Unix._exit 0)))
 
 let () =
+  UART.flushrx ();
   maybe_init ();
+  Printf.printf "Hi.\n%!";
   print_bdaddr ();
-  Bluetooth.set_event_mask 0xff |> Result.get_ok |> ignore;
-  Bluetooth.set_event_filter () |> Result.get_ok |> ignore;
-  Bluetooth.set_LE_event_mask 0xff |> Result.get_ok |> ignore;
+  Printf.printf "Set event mask.\n%!";
+  Bluetooth.set_event_mask
+    {
+      le_meta = true;
+      inquiry_result = true;
+      inquiry_complete = true;
+      connection_complete = true;
+      disconnection_complete = true;
+      authentication_complete = true;
+      remote_name_request_complete = true;
+      connection_request = true;
+    }
+  |> ignore;
+  Printf.printf "Set event filter.\n%!";
+  Bluetooth.set_event_filter (Connection_setup (Allow_all Off)) |> ignore;
+  Bluetooth.set_LE_event_mask 0xff |> ignore;
   Bluetooth.start_active_advertising ();
   Printf.printf "Scanning..\n%!";
   Bluetooth.bt_wait_for_connection () |> ignore;

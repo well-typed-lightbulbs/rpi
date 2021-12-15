@@ -4,7 +4,7 @@
   (and
    (= %{architecture} arm64)
    (= %{context_name} "rpi4")))
- (libraries rpi rpi.ws2812b rpi.hardware-bare)
+ (libraries rpi rpi.ws2812b rpi.hardware-bare garland)
  (link_flags -cclib "-z rpi4-abi=rpi4"))
 
 (rule

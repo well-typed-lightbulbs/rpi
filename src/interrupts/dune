@@ -1,0 +1,25 @@
+(library
+ (name interrupts)
+ (public_name rpi.interrupts)
+ (foreign_archives intrp)
+ (libraries embedded rpi.hardware)
+ (enabled_if
+  (and
+   (= %{architecture} arm64)
+   (= %{context_name} "rpi4")))
+ (no_dynlink))
+
+(rule
+ (deps irqentry.S utils.S interrupts.c)
+ (targets libintrp.a)
+ (enabled_if
+  (and
+   (= %{architecture} arm64)
+   (= %{context_name} "rpi4")))
+ (action
+  (progn
+   (run %{ocaml-config:asm} irqentry.S -o irqentry.o)
+   (run %{ocaml-config:asm} utils.S -o utils.o)
+   (run %{cc} -c -I%{ocaml-config:standard_library} interrupts.c -o interrupts.o)
+   ; TODO: %{ocaml-config:native_pack_linker} should exist.
+   (run aarch64-none-elf-ld -r -o libintrp.a interrupts.o irqentry.o utils.o))))

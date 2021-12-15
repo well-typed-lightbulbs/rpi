@@ -6,9 +6,19 @@ type span_us = int64
 
 (* Passing time *)
 
+let timer_cs = base
+
 let timer_clo = Mem.(base + 0x04n)
 
 let timer_chi = Mem.(base + 0x08n)
+
+let timer_compare_0 = Mem.(base + 0x0cn)
+
+let timer_compare_1 = Mem.(base + 0x10n)
+
+let timer_compare_2 = Mem.(base + 0x14n)
+
+let timer_compare_3 = Mem.(base + 0x18n)
 
 let elapsed_us () =
   let low_32 = Mem.get_int timer_clo in
@@ -39,3 +49,5 @@ let counter_value_us c = Int64.sub (elapsed_us ()) c
 let s_to_us = 1_000_000L
 
 let ms_to_us = 1_000L
+
+let timer_1_set value = Mem.set_int timer_compare_1 value

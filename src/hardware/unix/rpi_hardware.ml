@@ -11,3 +11,6 @@ let mtime = mmap mtime mtime_registers_size
 let gpio = mmap gpio gpio_registers_size
 
 let clock = mmap clock clock_registers_size
+
+let armcore_irq_controller =
+  mmap armcore_irq_controller armcore_irq_controller_registers_size

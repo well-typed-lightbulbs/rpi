@@ -223,18 +223,15 @@ module Make (UART : UART.S) = struct
     done;
     Option.get !conn
 
-  let l2cap_write handle v =
-    let size = L2cap.size v in
-    let data = Cstruct.create_unsafe size in
-    L2cap.write v data;
-    write Acl { handle; data }
+  let l2cap =
+    { Hci.Packet.ACL.size = L2cap.size; read = L2cap.read; write = L2cap.write }
 
   let acl_respond_mtu handle mtu =
     let data = Cstruct.create_unsafe 3 in
     (* mtu response opcode *)
     Cstruct.set_uint8 data 0 0x03;
     Cstruct.LE.set_uint16 data 1 mtu;
-    l2cap_write handle { channel = 4; data }
+    write (Acl l2cap) { handle; data = { channel = 4; data } }
 
   let acl_respond_attribues_request handle =
     let data = Cstruct.create_unsafe 8 in
@@ -247,7 +244,7 @@ module Make (UART : UART.S) = struct
     Cstruct.LE.set_uint16 data 4 0xffff;
     (* end group handle *)
     Cstruct.LE.set_uint16 data 6 0xec00;
-    l2cap_write handle { channel = 4; data }
+    write (Acl l2cap) { handle; data = { channel = 4; data } }
 
   let acl_read_by_type_request handle =
     let data = Cstruct.create_unsafe 9 in
@@ -262,7 +259,7 @@ module Make (UART : UART.S) = struct
     Cstruct.set_uint8 data 4 0x8;
     Cstruct.LE.set_uint16 data 5 0x0001;
     Cstruct.LE.set_uint16 data 7 0xec0e;
-    l2cap_write handle { channel = 4; data }
+    write (Acl l2cap) { handle; data = { channel = 4; data } }
 
   let acl_read_by_type_request_client_char_config handle =
     let data = Cstruct.create_unsafe 6 in
@@ -274,7 +271,7 @@ module Make (UART : UART.S) = struct
     Cstruct.LE.set_uint16 data 2 0x0001;
     (* attribute value *)
     Cstruct.LE.set_uint16 data 4 0x00;
-    l2cap_write handle { channel = 4; data }
+    write (Acl l2cap) { handle; data = { channel = 4; data } }
 
   let acl_error handle =
     let data = Cstruct.create_unsafe 5 in
@@ -286,13 +283,13 @@ module Make (UART : UART.S) = struct
     Cstruct.LE.set_uint16 data 2 0x0001;
     (* attribute_not_found error code *)
     Cstruct.set_uint8 data 4 0x0A;
-    l2cap_write handle { channel = 4; data }
+    write (Acl l2cap) { handle; data = { channel = 4; data } }
 
   let ack handle =
     let data = Cstruct.create 1 in
     (* attribues response opcode *)
     Cstruct.set_uint8 data 0 0x13;
-    l2cap_write handle { channel = 4; data }
+    write (Acl l2cap) { handle; data = { channel = 4; data } }
 
   let bt_wait_for_data () =
     let conn = ref None in
@@ -303,29 +300,28 @@ module Make (UART : UART.S) = struct
       | Event (Unknown { id; _ }) -> Printf.printf "Ignored event %2x.\n%!" id
       | Event _ -> Printf.printf "Ignored known event.\n%!"
       | Acl { handle; data } ->
-          let _length = Cstruct.LE.get_uint16 data 0 in
-          let channel = Cstruct.LE.get_uint16 data 2 in
+          let { L2cap.channel; data } = L2cap.read data in
           if channel == 4 then
-            let opcode = Cstruct.get_uint8 data 4 in
+            let opcode = Cstruct.get_uint8 data 0 in
             if opcode == 2 then (
-              let mtu = Cstruct.LE.get_uint16 data 5 in
+              let mtu = Cstruct.LE.get_uint16 data 1 in
               Printf.printf "MTU request: %d\n%!" mtu;
               acl_respond_mtu handle mtu)
             else if opcode == 0x10 then (
-              let uuid = Cstruct.LE.get_uint16 data 9 in
+              let uuid = Cstruct.LE.get_uint16 data 5 in
               Printf.printf "attribues request: %2x\n%!" uuid;
               acl_respond_attribues_request handle)
             else if opcode == 0x08 then (
-              let start = Cstruct.LE.get_uint16 data 5 in
-              let uuid = Cstruct.LE.get_uint16 data 9 in
+              let start = Cstruct.LE.get_uint16 data 1 in
+              let uuid = Cstruct.LE.get_uint16 data 5 in
               Printf.printf "attribues type: %2x / %2x\n%!" start uuid;
               if start == 1 then
                 if uuid == 0x2803 then acl_read_by_type_request handle
                 else acl_read_by_type_request_client_char_config handle
               else acl_error handle)
             else if opcode == 0x12 then (
-              let uuid = Cstruct.LE.get_uint16 data 5 in
-              let data = Cstruct.to_string ~off:7 data in
+              let uuid = Cstruct.LE.get_uint16 data 1 in
+              let data = Cstruct.to_string ~off:3 data in
               Printf.printf "Write %s to %02x\n%!" data uuid;
               ack handle)
     done;
