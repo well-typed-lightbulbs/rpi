@@ -12,6 +12,10 @@ let gp_clr0 = Mem.(base + 0x28n)
 
 let gp_clr1 = Mem.(base + 0x2Cn)
 
+let gp_lev0 = Mem.(base + 0x34n)
+
+let gp_lev1 = Mem.(base + 0x38n)
+
 let gp_pud = Mem.(base + 0x94n)
 
 let gp_pudclk0 = Mem.(base + 0x98n)
@@ -68,3 +72,12 @@ let set p b =
   in
   Mem.set_int r (1 lsl n);
   ()
+
+let get p =
+  let p = pin_to_int p in
+  let r, n =
+    if p > 31 then (gp_lev1, p land 31)
+    else (gp_lev0, p)
+  in
+  let i = Mem.get_int r in
+  i land (1 lsl n) <> 0
