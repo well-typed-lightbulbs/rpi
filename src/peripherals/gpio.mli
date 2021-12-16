@@ -33,3 +33,6 @@ val set_pull_state : pin -> pull_state -> unit
 
 val set : pin -> bool -> unit
 (** [set p v] sets the value of pin [p] to [v]. *)
+
+val get : pin -> bool
+(** [get p] gets the value of pin [p]. *)
