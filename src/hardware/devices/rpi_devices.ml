@@ -1,5 +1,7 @@
 let offset = Nativeint.add Rpi_base.base
 
+let crystal_frequency = Rpi_base.crystal_frequency
+
 let clock = offset 0x101000n
 
 let clock_registers_size = 0xb0n

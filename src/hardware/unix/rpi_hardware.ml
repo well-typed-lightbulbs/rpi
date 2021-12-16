@@ -2,6 +2,8 @@ external mmap : nativeint -> nativeint -> nativeint = "caml_mmap"
 
 open Rpi_devices
 
+let crystal_frequency = crystal_frequency
+
 let uart0 = mmap uart0 uart0_registers_size
 
 let pwm = mmap pwm pwm_registers_size

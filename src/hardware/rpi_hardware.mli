@@ -1,5 +1,7 @@
 val clock : nativeint
 
+val crystal_frequency : int
+
 val gpio : nativeint
 
 val mtime : nativeint
