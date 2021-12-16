@@ -1,6 +1,7 @@
 (* https://www.scribd.com/doc/127599939/BCM2835-Audio-clocks *)
 
 let base = Rpi_hardware.clock
+let crystal_frequency = Rpi_hardware.crystal_frequency
 
 module Reg = struct
   module Cm_pwmdiv = struct
@@ -72,8 +73,6 @@ let cm_pwmctl = Mem.(base + 0xa0n)
 (*
   let password = 0x5a lsl 24*)
 
-let pi4_freq = 54000000
-
 (*  let div_divi value = (value land 0xfff) lsl 12*)
 
 let wait_while_busy () =
@@ -89,7 +88,7 @@ let wait_until_busy () =
 let set_pwm_clock freq =
   Mem.dmb ();
   Reg.Cm_pwmdiv.(
-    empty |> set password () |> set divi (pi4_freq / freq) |> write);
+    empty |> set password () |> set divi (crystal_frequency / freq) |> write);
   Reg.Cm_pwmctl.(empty |> set password () |> write);
   Reg.Cm_pwmctl.(empty |> set password () |> set source OSC |> write);
   Mtime.sleep_us 10L;
