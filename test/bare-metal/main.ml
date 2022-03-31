@@ -1,4 +1,4 @@
-open Garland
+(*open Garland
 
 let test5 =
   speed 1.5
@@ -16,3 +16,30 @@ let rec loop () =
   loop ()
 
 let () = loop ()
+*)
+
+
+external irq_enable : unit -> unit = "irq_enable"
+open Lwt.Syntax
+
+let rec loop1 () =
+  let* () = OS.Time.sleep_us 500000L in
+  Printf.printf "Loop 1. %Ld\n%!" (OS.Time.now ());
+  loop1 ()
+  
+let rec loop2 () =
+  let* () = OS.Time.sleep_us 3000000L in
+  Printf.printf "Loop 2. %Ld\n%!" (OS.Time.now ());
+  loop2 ()  
+
+let program () =
+  Lwt.join [
+    loop1 ();
+    loop2 ();
+  ]
+
+  
+
+let () = 
+  irq_enable ();
+  OS.go (program ())
