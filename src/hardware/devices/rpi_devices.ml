@@ -16,6 +16,10 @@ let pwm = offset 0x20c000n
 
 let pwm_registers_size = 0x28n
 
+let aux = offset 0x215000n
+
+let aux_register_sizes = 0x100
+
 let uart0 = offset 0x201000n
 
 let uart0_registers_size = 0x90n
