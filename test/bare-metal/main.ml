@@ -22,24 +22,32 @@ let () = loop ()
 external irq_enable : unit -> unit = "irq_enable"
 open Lwt.Syntax
 
-let rec loop1 () =
-  let* () = OS.Time.sleep_us 500000L in
-  Printf.printf "Loop 1. %Ld\n%!" (OS.Time.now ());
-  loop1 ()
-  
+let c = ref 0
+
 let rec loop2 () =
-  let* () = OS.Time.sleep_us 3000000L in
-  Printf.printf "Loop 2. %Ld\n%!" (OS.Time.now ());
+  let* () = OS.Time.sleep_us 1000000L in
+  let stat = Gc.quick_stat () in
+  Printf.printf "%Ld: minor %d major %d compactions %d\n%!" 
+    (OS.Time.now ())
+    stat.minor_collections
+    stat.major_collections
+    stat.compactions;
   loop2 ()  
 
-let program () =
+let rec echo () =
+  let* c = Rpi.AUX.read () in
+  Printf.printf "ECHO: '%c' %Ld\n%!" c (OS.Time.now ());
+  echo ()
+
+let program () = 
   Lwt.join [
-    loop1 ();
-    loop2 ();
+    loop2 (); 
+    echo ()
   ]
 
-  
 
 let () = 
   irq_enable ();
+  Rpi.AUX.init ();
+  OS.Hooks.register Rpi.AUX.restart_threads;
   OS.go (program ())
