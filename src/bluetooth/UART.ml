@@ -6,8 +6,6 @@ module type S = sig
   val write_byte : int -> unit
 end
 
-open Rpi
-
 module UART0 = struct
   let base = Rpi_hardware.uart0
 
@@ -113,3 +111,4 @@ module UART0 = struct
     Mem.set_int Reg.Imsc.addr 0x430;
     Mtime.sleep_us 10_000L
 end
+ 

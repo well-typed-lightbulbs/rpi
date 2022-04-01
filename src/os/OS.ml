@@ -1,4 +1,6 @@
 
+external wfi : unit -> unit = "wfi"
+
 external irq_enable : unit -> unit = "irq_enable"
 
 module Handle = struct
@@ -11,82 +13,21 @@ end
 
 module HandleMap = Map.Make (Handle)
 
-(*
-let work = ref HandleMap.empty
+module Hooks = struct
 
-let wait_for h =
-  match HandleMap.find h !work with
-  | exception Not_found ->
-      let cond = Lwt_condition.create () in
-      work := HandleMap.add h cond !work;
-      Lwt_condition.wait cond
-  | cond -> Lwt_condition.wait cond
+  let state = ref []
 
-let rec yield timeout =
-  let ready_set =
-    HandleMap.bindings !work
-    |> List.filter_map (fun (({ Handle.check_ready; _ } as h), _) ->
-           if check_ready () then Some h else None)
-  in
-  match ready_set with
-  | [] when Int64.compare (Rpi.Mtime.elapsed_us ()) timeout > 0 -> []
-  | [] ->
-      Rpi.Mtime.sleep_us 1000L;
-      yield timeout
-  | ready -> ready
-*)
-(*
-module UART = struct
-  
+  let register callback =
+    state := callback :: !state
 
-  let readers = ref None
-
-  let read_char_rx_fifo () = Some 'c'
-
-  let rec handle _ =
-    match read_char_rx_fifo (), !readers with
-    | None, _ -> enable_global_interrupts ()
-    | _, None -> enable_global_interrupts ()
-    | Some c, Some r -> 
-      Lwt.wakeup r c; 
-      handle 0
-
-  let enable_interrupts () = 
-    Sys.set_signal 11 (Sys.Signal_handle handle)
-
-  let read () =
-    enable_interrupts ();
-    let promise, resolver = Lwt.task () in
-    readers := Some resolver;
-    promise
-    
-
+  let iter () =
+    List.iter (fun fn -> fn ()) !state
 end
-*)
-
-(*
-let rec go t =
-  Lwt.wakeup_paused ();
-  Time.restart_threads Time.now;
-  match Lwt.poll t with
-  | Some () -> ()
-  | None ->
-    let timeout =
-      match Time.select_next () with
-      | None -> Int64.add (Rpi.Mtime.elapsed_us ()) (Duration.of_day 1)
-      | Some tm -> tm
-    in
-    timer_schedule_next_interrupt timeout;
-    wait_for_interrupt ();
-    Bytes.create 0 |> ignore; (* poll signals *)
-    go t
-*)
-
-external wfi : unit -> unit = "wfi"
 
 let rec run t =
   Lwt.wakeup_paused ();
   Time.restart_threads Time.now;
+  Hooks.iter ();
   match Lwt.poll t with
   | Some () -> ()
   | None ->
@@ -97,13 +38,10 @@ let rec run t =
       in
       Rpi.Mtime.schedule_next_interrupt L1 timeout;
       wfi ();
-      print_endline "hello";
       Bytes.create 1 |> ignore;
-      Printf.printf "Got interrupt\n%!";
       run t
 
 let timer_interrupt_handler _ =
-  Printf.printf "I am handler\n%!";
   Rpi.Mtime.acknowledge_interrupt L1;
   Mem.dmb ();
   irq_enable ()
