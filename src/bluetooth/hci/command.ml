@@ -55,13 +55,10 @@ module Opcode = struct
     [@@uint32_t]]
 
     let () = assert (t_to_int Set_event_mask = 1l)
-
     let () = assert (t_to_int Read_maximum_data_length = 47l)
   end
 
   module OGF1 = struct
-    let ogf = 1
-
     [%%cenum
     type t = Disconnect [@id 6] | Read_remote_version_information [@id 29]
     [@@uint32_t]]
@@ -129,6 +126,7 @@ module Opcode = struct
     let b_lo = opcode land 0xff in
     (b_lo, b_hi)
 
+  (*
   let make cmd =
     let ogf, ogc =
       match cmd with
@@ -141,7 +139,7 @@ module Opcode = struct
     let opcode = (ogf lsl 10) lor Int32.to_int ogc in
     let b_hi = (opcode lsr 8) land 0xff in
     let b_lo = opcode land 0xff in
-    (b_lo, b_hi)
+    (b_lo, b_hi)*)
 end
 
 type 'input t = {
@@ -478,7 +476,6 @@ module Vendor = struct
 end
 
 let id = 0x01
-
 let size (c : _ t) data = 3 + c.size data
 
 let write (c : _ t) data buffer =
