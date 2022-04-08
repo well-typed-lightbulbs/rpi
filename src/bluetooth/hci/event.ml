@@ -1,7 +1,5 @@
 type 'data handler = { id : int; read : Cstruct.t -> 'data }
 
-let v id read = { id; read }
-
 module Status = struct
   [%%cenum
   type t =
@@ -122,17 +120,22 @@ type t =
   | Vendor_specific of Vendor_specific.t
   | Unknown of Unknown.t
 
+open Lwt.Syntax
+
 let get_packet ~get_byte =
-  let id = get_byte () in
-  let size = get_byte () in
+  let* id = get_byte () in
+  let* size = get_byte () in
   let buffer = Cstruct.create_unsafe size in
-  for i = 0 to size - 1 do
-    Cstruct.set_uint8 buffer i (get_byte ())
-  done;
+  let+ () = 
+    List.init size Fun.id |>
+    Lwt_list.iter_s (fun i -> 
+      let+ b = get_byte () in
+      Cstruct.set_uint8 buffer i b)
+  in
   (id, buffer)
 
-let read ~get_byte : t =
-  let id, buffer = get_packet ~get_byte in
+let read ~get_byte =
+  let+ id, buffer = get_packet ~get_byte in
   match id with
   | v when v = Disconnection_complete.id ->
       Disconnection_complete (Disconnection_complete.read buffer)
@@ -147,5 +150,5 @@ let read ~get_byte : t =
 exception Unexpected_event of int
 
 let expect ~get_byte value =
-  let id, buffer = get_packet ~get_byte in
+  let+ id, buffer = get_packet ~get_byte in
   if id <> value.id then raise (Unexpected_event id) else value.read buffer

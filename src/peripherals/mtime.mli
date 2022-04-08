@@ -40,4 +40,12 @@ val s_to_us : int64
 val ms_to_us : int64
 (** [ms_to_us] is the number of microseconds in one millisecond. *)
 
-val timer_1_set : int -> unit
+(** Interruptions *)
+
+type interrupt_line = L0 | L1 | L2 | L3
+
+val interrupt_line_to_signal_number : interrupt_line -> int
+
+val schedule_next_interrupt : interrupt_line -> span_us -> unit
+
+val acknowledge_interrupt : interrupt_line -> unit

@@ -1,6 +1,5 @@
-module Make (B : sig
-  val addr : Mem.addr
-end) : sig
+(* 32 bit registers *)
+module Raw : sig 
   type 'a field = {
     offset : int;
     size : int;
@@ -12,7 +11,7 @@ end) : sig
 
   val bool : offset:int -> bool field
 
-  val read : 'a field -> 'a
+  val get : int -> 'a field -> 'a
 
   type value
 
@@ -20,11 +19,8 @@ end) : sig
 
   val set : 'a field -> 'a -> value -> value
 
-  val write : value -> unit
-
-  val addr : Mem.addr
-end = struct
-  let addr = B.addr
+  val reg : value -> int
+end= struct
 
   type 'a field = {
     offset : int;
@@ -33,8 +29,8 @@ end = struct
     of_int : int -> 'a;
   }
 
-  let read { offset; size; of_int; _ } =
-    of_int ((Mem.get_int B.addr lsr offset) land ((1 lsl size) - 1))
+  let get value { offset; size; of_int; _ } =
+    of_int ((value lsr offset) land ((1 lsl size) - 1))
 
   type value = int
 
@@ -44,7 +40,7 @@ end = struct
     let mask = (1 lsl size) - 1 in
     current land lnot (mask lsl offset) lor (to_int value lsl offset)
 
-  let write (v : value) = Mem.set_int B.addr v
+  let reg (v : value) = v
 
   let bool ~offset =
     {
@@ -55,4 +51,24 @@ end = struct
     }
 
   let int ~size ~offset = { offset; size; to_int = Fun.id; of_int = Fun.id }
+  
+end
+
+module Make (B : sig
+  val addr : Mem.addr
+end) : sig
+  include module type of Raw
+
+  val read : 'a field -> 'a
+
+  val write : value -> unit
+
+  val addr : Mem.addr
+end = struct
+  include Raw
+  let addr = B.addr
+
+  let read t = get (Mem.get_int B.addr) t
+  
+  let write (v : value) = Mem.set_int B.addr (reg v)
 end

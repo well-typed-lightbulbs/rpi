@@ -1,3 +1,8 @@
+
+external wfi : unit -> unit = "wfi"
+
+external irq_enable : unit -> unit = "irq_enable"
+
 module Handle = struct
   type t = { id : < >; check_ready : unit -> bool }
 
@@ -8,51 +13,44 @@ end
 
 module HandleMap = Map.Make (Handle)
 
-let work = ref HandleMap.empty
+module Hooks = struct
 
-let wait_for h =
-  match HandleMap.find h !work with
-  | exception Not_found ->
-      let cond = Lwt_condition.create () in
-      work := HandleMap.add h cond !work;
-      Lwt_condition.wait cond
-  | cond -> Lwt_condition.wait cond
+  let state = ref []
 
-let rec yield timeout =
-  let ready_set =
-    HandleMap.bindings !work
-    |> List.filter_map (fun (({ Handle.check_ready; _ } as h), _) ->
-           if check_ready () then Some h else None)
-  in
-  match ready_set with
-  | [] when Int64.compare (Rpi.Mtime.elapsed_us ()) timeout > 0 -> []
-  | [] ->
-      Rpi.Mtime.sleep_us 1000L;
-      yield timeout
-  | ready -> ready
+  let register callback =
+    state := callback :: !state
 
-let rec go t =
+  let iter () =
+    List.iter (fun fn -> fn ()) !state
+end
+
+let rec run t =
   Lwt.wakeup_paused ();
   Time.restart_threads Time.now;
+  Hooks.iter ();
   match Lwt.poll t with
   | Some () -> ()
   | None ->
-      (let timeout =
-         match Time.select_next () with
-         | None -> Int64.add (Rpi.Mtime.elapsed_us ()) (Duration.of_day 1)
-         | Some tm -> tm
-       in
-       let ready_set = yield timeout in
-       match ready_set with
-       | [] -> ()
-       | ready_set ->
-           List.iter
-             (fun h ->
-               let condition = HandleMap.find h !work in
-               work := HandleMap.remove h !work;
-               Lwt_condition.broadcast condition ())
-             ready_set);
-      go t
+      let timeout =
+        match Time.select_next () with
+        | None -> Int64.add (Rpi.Mtime.elapsed_us ()) (Duration.of_day 1)
+        | Some tm -> tm
+      in
+      Rpi.Mtime.schedule_next_interrupt L1 timeout;
+      wfi ();
+      Bytes.create 1 |> ignore;
+      run t
+
+let timer_interrupt_handler _ =
+  Rpi.Mtime.acknowledge_interrupt L1;
+  Mem.dmb ();
+  irq_enable ()
+
+let go t = 
+  Sys.set_signal 
+    (Rpi.Mtime.(interrupt_line_to_signal_number L1)) 
+    (Sys.Signal_handle timer_interrupt_handler);
+  run t
 
 let () = at_exit @@ fun () -> Lwt.abandon_wakeups ()
 

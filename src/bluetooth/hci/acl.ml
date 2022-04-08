@@ -16,20 +16,24 @@ let raw =
 type 'a t = { handle : int; data : 'a }
 
 let read ~get_byte v =
-  let handle =
-    let handle_lo = get_byte () in
-    let handle_hi = get_byte () in
+  let open Lwt.Syntax in
+  let* handle =
+    let* handle_lo = get_byte () in
+    let+ handle_hi = get_byte () in
     handle_lo lor (handle_hi lsl 8)
   in
-  let length =
-    let length_lo = get_byte () in
-    let length_hi = get_byte () in
+  let* length =
+    let* length_lo = get_byte () in
+    let+ length_hi = get_byte () in
     length_lo lor (length_hi lsl 8)
   in
   let buffer = Cstruct.create_unsafe length in
-  for i = 0 to length - 1 do
-    Cstruct.set_uint8 buffer i (get_byte ())
-  done;
+  let+ () = 
+    List.init length Fun.id |>
+    Lwt_list.iter_s (fun i -> 
+      let+ b = get_byte () in
+      Cstruct.set_uint8 buffer i b)
+  in
   { handle; data = v.read buffer }
 
 let size { size; _ } { data; _ } = size data + 4

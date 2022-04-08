@@ -15,8 +15,10 @@ external bt_get_firmware :
   = "caml_bt_get_firmware"
 
 module Make (UART : UART.S) = struct
+  open Lwt.Syntax
+
   let uart_assert_read value =
-    let value' = UART.read_byte () in
+    let+ value' = UART.read_byte () in
     if value' != value then (
       Printf.printf "BT assertion failed: got %02x instead of %02x\n%!" value'
         value;
@@ -31,7 +33,7 @@ module Make (UART : UART.S) = struct
     | Vendor_specific of Cstruct.t
     | Unknown of (int * Cstruct.t)
     | Disconnection_complete of { status : int; handle : int; reason : int }
-
+  (*
   let hci_parse_acl () =
     let handle =
       let handle_lo = UART.read_byte () in
@@ -47,10 +49,9 @@ module Make (UART : UART.S) = struct
     for i = 0 to length - 1 do
       Cstruct.set_uint8 data i (UART.read_byte ())
     done;
-    Ok (handle, data)
+    Ok (handle, data)*)
 
   let write x = Hci.write ~write_byte:UART.write_byte x
-
   let expect x = Hci.expect ~get_byte:UART.read_byte x
 
   let bt_reset () =
@@ -62,18 +63,18 @@ module Make (UART : UART.S) = struct
     let size = Cstruct.length data in
     assert (size < 100000);
     write (Command Hci.Packet.Command.Vendor.Load_firmware.v) ();
-    expect (Event Hci.Packet.Event.Command_complete.v) |> ignore;
+    let* _ = expect (Event Hci.Packet.Event.Command_complete.v) in
 
     let last_position = ref (-5.) in
     let maybe_print position =
       let percent = 100. *. Float.of_int position /. Float.of_int size in
       if percent -. !last_position >= 5. then (
-        Printf.printf "%d/%d (%2.1f%%)\n%!" position size percent;
+        Printf.printf "%d/%d (%d%%)\n%!" position size (Float.to_int percent);
         last_position := percent)
     in
 
     let rec send position =
-      if position >= size then ()
+      if position >= size then Lwt.return ()
       else (
         maybe_print position;
         let opcode0 = Cstruct.get_byte data position in
@@ -89,11 +90,11 @@ module Make (UART : UART.S) = struct
           let byte = Cstruct.get_uint8 slice i in
           UART.write_byte byte
         done;
-        expect (Event Hci.Packet.Event.Command_complete.v) |> ignore;
+        let* _ = expect (Event Hci.Packet.Event.Command_complete.v) in
 
         send (position + length + 3))
     in
-    send 0;
+    let+ _ = send 0 in
     Printf.printf "PATCH RAM: Success.\n%!";
     Mtime.sleep_us 250_000L
 
@@ -108,7 +109,7 @@ module Make (UART : UART.S) = struct
 
   let bt_getbdaddr () =
     write (Command Hci.Packet.Command.OGF4.Read_bdaddr.v) ();
-    let { Hci.Packet.Event.Command_complete.data; _ } =
+    let+ { Hci.Packet.Event.Command_complete.data; _ } =
       expect (Event Hci.Packet.Event.Command_complete.v)
     in
     (* answer is a byte and then the little-endian bdaddr *)
@@ -171,7 +172,6 @@ module Make (UART : UART.S) = struct
     expect (Event Hci.Packet.Event.Command_complete.v)
 
   let stop_scanning () = set_LE_scan_enable 0 0
-
   let stop_advertising () = set_LE_advert_enable 0
 
   let start_active_scanning () =
@@ -181,7 +181,7 @@ module Make (UART : UART.S) = struct
     let ble_scan_divisor = 0.625 in
     let p = Float.to_int (Float.of_int ble_scan_interval /. ble_scan_divisor) in
     let q = Float.to_int (Float.of_int ble_scan_window /. ble_scan_divisor) in
-    set_LE_scan_parameters Hci.LL.scan_active p q 0 0 |> ignore;
+    let* _ = set_LE_scan_parameters Hci.LL.scan_active p q 0 0 in
     set_LE_scan_enable 1 0
 
   let set_event_filter filter =
@@ -198,19 +198,18 @@ module Make (UART : UART.S) = struct
     let max_interval =
       Float.to_int (Float.of_int advert_max_freq /. ble_granularity)
     in
-    set_LE_advert_parameters Hci.LL.adv_ind min_interval max_interval 0 0
-    |> ignore;
-    set_LE_advert_data () |> ignore;
-    set_LE_advert_enable 1 |> ignore
+    let* _ = set_LE_advert_parameters Hci.LL.adv_ind min_interval max_interval 0 0 in
+    let* _ = set_LE_advert_data () in
+    set_LE_advert_enable 1
 
   let connect addr =
     write (Command Hci.Packet.Command.LE.Create_connection.v) addr;
     expect (Event Hci.Packet.Event.Command_complete.v)
 
   let bt_wait_for_connection () =
-    let conn = ref None in
-    while Option.is_none !conn do
-      match Hci.wait ~get_byte:UART.read_byte with
+    let rec aux () =
+      let* res = Hci.wait ~get_byte:UART.read_byte in
+      match res with
       | Event (LE_meta_event { data })
         when Cstruct.get_uint8 data 0 = LE.Events.Connection_complete.id ->
           let data =
@@ -218,10 +217,10 @@ module Make (UART : UART.S) = struct
               (Cstruct.sub data 1 (Cstruct.length data - 1))
           in
           Printf.printf "Connected to %S!\n%!" data.peer_address;
-          conn := Some data
-      | _ -> ()
-    done;
-    Option.get !conn
+          Lwt.return data
+      | _ -> aux ()
+    in
+    aux ()
 
   let l2cap =
     { Hci.Packet.ACL.size = L2cap.size; read = L2cap.read; write = L2cap.write }
@@ -292,9 +291,9 @@ module Make (UART : UART.S) = struct
     write (Acl l2cap) { handle; data = { channel = 4; data } }
 
   let bt_wait_for_data () =
-    let conn = ref None in
-    while Option.is_none !conn do
-      match Hci.wait ~get_byte:UART.read_byte with
+    let rec aux () =
+      let* res = Hci.wait ~get_byte:UART.read_byte in
+      (match res with
       | Event (LE_meta_event { data }) ->
           Printf.printf "Unknown event %02x\n%!" (Cstruct.get_uint8 data 0)
       | Event (Unknown { id; _ }) -> Printf.printf "Ignored event %2x.\n%!" id
@@ -323,7 +322,8 @@ module Make (UART : UART.S) = struct
               let uuid = Cstruct.LE.get_uint16 data 1 in
               let data = Cstruct.to_string ~off:3 data in
               Printf.printf "Write %s to %02x\n%!" data uuid;
-              ack handle)
-    done;
-    Option.get !conn
+              ack handle));
+      aux ()
+    in
+    aux ()
 end
