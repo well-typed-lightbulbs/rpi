@@ -14,17 +14,23 @@ type any = Event of Event.t | Acl of Cstruct.t Acl.t
 
 exception Unexpected of int
 
+open Lwt.Syntax
+
 let wait ~get_byte =
-  let id = get_byte () in
-  if id == Packet.Event.id then Event (Packet.Event.read ~get_byte)
-  else if id == Packet.ACL.id then Acl (Acl.read ~get_byte Acl.raw)
+  let* id = get_byte () in
+  if id == Packet.Event.id then
+    let+ evt = Packet.Event.read ~get_byte in
+    Event evt
+  else if id == Packet.ACL.id then
+    let+ acl = Acl.read ~get_byte Acl.raw in
+    Acl acl
   else raise (Unexpected id)
 
-let expect ~get_byte (type a) (v : a expect) : a =
-  let id = get_byte () in
+let expect ~get_byte (type a) (v : a expect) : a Lwt.t =
+  let* id = get_byte () in
   match v with
   | Event e when id == Packet.Event.id -> Packet.Event.expect ~get_byte e
-  | Acl a when id == Packet.Event.id -> Packet.ACL.read ~get_byte a
+  | Acl a when id == Packet.ACL.id -> (Packet.ACL.read ~get_byte a : a Lwt.t)
   | _ -> raise (Unexpected id)
 
 type 'a write =
