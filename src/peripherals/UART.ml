@@ -1,8 +1,5 @@
 module type S = sig
-  val read_byte : unit -> int
-
-  val read_byte_ready : unit -> bool
-
+  val read_byte : unit -> int Lwt.t
   val write_byte : int -> unit
 end
 
@@ -24,7 +21,6 @@ module UART0 = struct
       end)
 
       let receive_fifo_empty = bool ~offset:4
-
       let transmit_fifo_full = bool ~offset:5
     end
 
@@ -41,7 +37,6 @@ module UART0 = struct
       let parity_error_interrupt_mask = bool ~offset:8
       let break_error_interrupt_mask = bool ~offset:9
       let overrun_error_interrupt_mask = bool ~offset:10
-
     end
 
     module Icr = struct
@@ -57,7 +52,6 @@ module UART0 = struct
       let parity_error_interrupt_clear = bool ~offset:8
       let break_error_interrupt_clear = bool ~offset:9
       let overrun_error_interrupt_clear = bool ~offset:10
-
     end
 
     module Ibrd = struct
@@ -84,25 +78,25 @@ module UART0 = struct
       type interrupt_fifo_level = F1_8 | F1_4 | F1_2 | F3_4 | F7_8
 
       let to_int = function
-        | F1_8 -> 0 
-        | F1_4 -> 1 
-        | F1_2 -> 2 
-        | F3_4 -> 3 
+        | F1_8 -> 0
+        | F1_4 -> 1
+        | F1_2 -> 2
+        | F3_4 -> 3
         | F7_8 -> 4
 
       let of_int = function
-        | 0 -> F1_8 
-        | 1 -> F1_4 
-        | 2 -> F1_2 
-        | 3 -> F3_4 
+        | 0 -> F1_8
+        | 1 -> F1_4
+        | 2 -> F1_2
+        | 3 -> F3_4
         | 4 -> F7_8
         | _ -> failwith "interrupt_fifo_level"
 
-      let receive_interrupt_fifo_level_select = 
-        {to_int; of_int; offset=3; size=3}
-        
-      let transmit_interrupt_fifo_level_select = 
-        {to_int; of_int; offset=0; size=3}
+      let receive_interrupt_fifo_level_select =
+        { to_int; of_int; offset = 3; size = 3 }
+
+      let transmit_interrupt_fifo_level_select =
+        { to_int; of_int; offset = 0; size = 3 }
     end
 
     module Lcrh = struct
@@ -113,23 +107,20 @@ module UART0 = struct
       let stick_parity_select = bool ~offset:7
 
       type word_length = B8 | B7 | B6 | B5
-      let word_length = {
-        offset=5;
-        size=2;
-        to_int=
-          (function
-          | B8 -> 3
-          | B7 -> 2
-          | B6 -> 1
-          | B5 -> 0);
-        of_int=
-          (function
-          | 3 -> B8
-          | 2 -> B7
-          | 1 -> B6
-          | 0 -> B5
-          | _ -> failwith "word_length")
-      }
+
+      let word_length =
+        {
+          offset = 5;
+          size = 2;
+          to_int = (function B8 -> 3 | B7 -> 2 | B6 -> 1 | B5 -> 0);
+          of_int =
+            (function
+            | 3 -> B8
+            | 2 -> B7
+            | 1 -> B6
+            | 0 -> B5
+            | _ -> failwith "word_length");
+        }
 
       let enable_fifos = bool ~offset:4
       let two_stop_bits = bool ~offset:3
@@ -149,14 +140,25 @@ module UART0 = struct
       let receiver_enable = bool ~offset:9
       let transmit_enable = bool ~offset:8
       let loopback_enable = bool ~offset:7
-      let uart_enable = bool~offset:0
+      let uart_enable = bool ~offset:0
+    end
 
+    module Ris = struct
+      include Register.Make (struct
+        let addr = Mem.(base + 0x3cn)
+      end)
+    end
+
+    module Mis = struct
+      include Register.Make (struct
+        let addr = Mem.(base + 0x40n)
+      end)
     end
   end
 
   let read_byte_ready () = not Reg.Fr.(read receive_fifo_empty)
 
-  let read_byte () =
+  let read_byte_sync () =
     while Reg.Fr.(read receive_fifo_empty) do
       ()
     done;
@@ -164,7 +166,7 @@ module UART0 = struct
 
   let flushrx () =
     while not Reg.Fr.(read receive_fifo_empty) do
-      read_byte () |> ignore
+      read_byte_sync () |> ignore
     done
 
   let write_byte byte =
@@ -172,6 +174,44 @@ module UART0 = struct
       ()
     done;
     Reg.Dr.(empty |> set data byte |> write)
+
+  (* interrupt-based reading *)
+
+  external irq_enable : unit -> unit = "irq_enable"
+
+  let stream, push = Lwt_stream.create ()
+  let read_byte () = Lwt_stream.next stream
+  let state = Ke.Rke.create ~capacity:1024 Bigarray.Int
+  let pactl_cs = Mem.(Rpi_base.base + 0x204e00n)
+
+  let read () =
+    (* wait for a byte to arrive *)
+    while Reg.Fr.(read receive_fifo_empty) do 
+      Mtime.sleep_us 10L
+    done;
+    (* read the byte *)
+    Reg.Dr.(read data)
+
+  let handler _ =
+    Printf.printf "INTERRUPT %x %x %x\n%!" (Mem.get_int pactl_cs)
+      (Mem.get_int Reg.Ris.addr) (Mem.get_int Reg.Mis.addr);
+    Mem.dmb ();
+    while not Reg.Fr.(read receive_fifo_empty) do
+      let c = Reg.Dr.(read data) in
+      Ke.Rke.push state c
+    done;
+    Mem.set_int Reg.Icr.addr 0x7ff;
+    Mem.dmb ();
+    irq_enable ()
+
+  let rec restart_threads () =
+    try
+      let v = Ke.Rke.pop_exn state in
+      push (Some v);
+      restart_threads ()
+    with Ke.Rke.Empty -> ()
+
+  let uart_irq_line = 57
 
   let init () =
     (* UART SET UP*)
@@ -182,26 +222,31 @@ module UART0 = struct
     Gpio.set_func P14 F_ALT5;
     Gpio.set_func P15 F_ALT5;
     flushrx ();
-    (* TODO: understand what's happening *)
-    Reg.Imsc.(empty |> write); (* don't mask interrupts *)
-    Mem.set_int Reg.Icr.addr 0x7ff; (* clear all interrupts *)
+
+    (* mask interrupts *)
+    Mem.set_int Reg.Imsc.addr 0x7ff;
+    (* clear all interrupts *)
+    Mem.set_int Reg.Icr.addr 0x7ff;
     Reg.Ibrd.(empty |> set integer_baud_rate_divisor 26 |> write);
     Reg.Fbrd.(empty |> set fractional_baud_rate_divisor 3 |> write);
-    Reg.Ifls.(empty |> set receive_interrupt_fifo_level_select F1_4 |> write);
+    Reg.Ifls.(empty |> set receive_interrupt_fifo_level_select F1_8 |> write);
     Reg.Lcrh.(empty |> set enable_fifos true |> set word_length B8 |> write);
-    Reg.Cr.(empty 
-      |> set uart_enable true 
-      |> set transmit_enable true 
-      |> set receiver_enable true 
-      |> set rts true
-      |> write);
-    Printf.printf "UART0 READY\n%!";
-    Reg.Imsc.(empty 
+    Reg.Cr.(
+      empty |> set uart_enable true |> set transmit_enable true
+      |> set receiver_enable true |> set rts true |> write);
+    (*
+    Reg.Imsc.(
+      empty
       |> set overrun_error_interrupt_mask true
       |> set transmit_interrupt_mask true
       |> set receive_interrupt_mask true
       |> write);
-    Mem.set_int Reg.Imsc.addr 0x430;
-    Mtime.sleep_us 10_000L
+    Mem.set_int Reg.Imsc.addr 0x7ff;
+    Mem.set_int Reg.Icr.addr 0x7ff;*)
+    Mem.set_int Reg.Imsc.addr 0x7ff;
+    Mem.set_int Reg.Icr.addr 0x7ff;
+    Mtime.sleep_us 10_000L;
+    Sys.set_signal uart_irq_line (Sys.Signal_handle handler)
+
+  
 end
- 
