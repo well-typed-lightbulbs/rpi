@@ -12,7 +12,9 @@ let mtime = offset 0x003000n
 
 let mtime_registers_size = 0x1cn
 
-let pwm = offset 0x20c000n
+let pwm0 = offset 0x20c000n
+
+let pwm1 = offset 0x20c800n
 
 let pwm_registers_size = 0x28n
 

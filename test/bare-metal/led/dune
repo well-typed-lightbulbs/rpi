@@ -1,0 +1,32 @@
+(executable
+ (name main)
+ (enabled_if
+  (and
+   (= %{architecture} arm64)
+   (= %{context_name} "rpi4")))
+ (libraries rpi rpi.ws2812b rpi.hardware-bare garland rpi.os rpi.bluetooth)
+ (link_flags -cclib "-z rpi4-abi=rpi4")
+ (foreign_stubs
+  (language c)
+  (names main)))
+
+(rule
+ (targets kernel8.elf)
+ (enabled_if
+  (and
+   (= %{architecture} arm64)
+   (= %{context_name} "rpi4")))
+ (mode promote)
+ (action
+  (copy main.exe kernel8.elf)))
+
+(rule
+ (targets kernel8.img)
+ (enabled_if
+  (and
+   (= %{architecture} arm64)
+   (= %{context_name} "rpi4")))
+ (deps kernel8.elf)
+ (mode promote)
+ (action
+  (run aarch64-linux-gnu-objcopy -O binary kernel8.elf kernel8.img)))
