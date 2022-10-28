@@ -1,6 +1,8 @@
-type color = { r : int; (* 8 bits *)
-                        g : int; (* 8 bits *)
-                                 b : int (* 8 bits *) }
+type color = {
+  r : int; (* 8 bits *)
+  g : int; (* 8 bits *)
+  b : int; (* 8 bits *)
+}
 
 module Encoding = struct
   type state = {
@@ -71,6 +73,16 @@ let wait_until_ready () =
 
 let update_next_write_time () =
   next_write_after := Int64.add (Mtime.elapsed_us ()) down_time
+
+module Pwm = Pwm.Make (struct
+  open Pwm
+
+  let mode = Serial
+  let pins = [ Pin18 ]
+  let freq = 3 * 800_000
+  let range = 32
+  let is_stereo = false
+end)
 
 let output data =
   wait_until_ready ();

@@ -6,7 +6,9 @@ val gpio : nativeint
 
 val mtime : nativeint
 
-val pwm : nativeint
+val pwm0 : nativeint
+
+val pwm1 : nativeint
 
 val aux : nativeint
 
