@@ -8,6 +8,8 @@ let pwm0 = mmap pwm0 pwm_registers_size
 
 let pwm1 = mmap pwm1 pwm_registers_size
 
+let aux = mmap aux pwm_registers_size
+
 let mtime = mmap mtime mtime_registers_size
 
 let gpio = mmap gpio gpio_registers_size
