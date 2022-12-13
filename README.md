@@ -15,7 +15,7 @@ opam pin gilbraltar https://github.com/dinosaure/gilbraltar.git
 dune build --workspace dune-workspace.bare
 ```
 
-### Build on a Raspberry PI 
+### Build on a Raspberry Pi
 
 ```
 dune build
@@ -23,7 +23,7 @@ dune build
 
 ### Cross-Compilation
 
-We need a cross-compiler configured for the Raspberry PI OS (corresponding GLIBC):
+We need a cross-compiler configured for the Raspberry Pi OS (corresponding GLIBC):
 
 https://github.com/abhiTronix/raspberry-pi-cross-compilers#e-toolchain-setup-documentation
 
