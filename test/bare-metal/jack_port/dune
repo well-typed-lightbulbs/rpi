@@ -27,3 +27,10 @@
  (mode promote)
  (action
   (run aarch64-linux-gnu-objcopy -O binary kernel8.elf kernel8.img)))
+
+(rule
+ (targets music.ml)
+ (deps
+  (source_tree music))
+ (action
+  (run ocaml-crunch music/ -e bin -o music.ml -m plain)))

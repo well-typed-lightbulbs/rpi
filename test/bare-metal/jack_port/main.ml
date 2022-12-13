@@ -9,11 +9,11 @@ end)
 let play_music () =
   print_endline "loading music file";
   (* we can create binary music files with [ffmpeg]:
-     ffmpeg -i minor_jumps_major_cats.wav -f u8 -ar 44.1k -ac 2 minor_jumps_major_cats.bin
+     ffmpeg -i audio.wav -f u8 -ar 44.1k -ac 2 audio.bin
      we can load it into memory with [ocaml-crunch]:
      ocaml-crunch music/ -e bin -o music.ml -m plain
      *)
-  match Music.read "/minor_jumps_major_cats.bin" with
+  match Music.read "/audio.bin" with
   | None -> failwith "no music"
   | Some bytes -> String.iter (fun c -> Pwm.write (Char.code c)) bytes
 
