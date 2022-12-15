@@ -84,11 +84,14 @@ module Pwm = Pwm.Make (struct
   let is_stereo = false
 end)
 
+open Lwt.Syntax
+
 let output data =
   wait_until_ready ();
-  Pwm.init ();
-  for i = 0 to Array.length data - 1 do
-    Pwm.write data.(i)
-  done;
-  Pwm.stop ();
+  let* () = Pwm.init () in
+  let* () =
+    List.init (Array.length data - 1) Fun.id
+    |> Lwt_list.iter_s (fun i -> Pwm.write data.(i))
+  in
+  let+ () = Pwm.stop () in
   update_next_write_time ()
