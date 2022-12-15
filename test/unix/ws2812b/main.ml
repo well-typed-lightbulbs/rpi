@@ -17,9 +17,7 @@ let pattern =
         { r = 0; g = 30 - pos; b = 30 + (mode / 2 * pos) })
 
 let next = function first :: next -> next @ [ first ] | _ -> assert false
-
 let entropy = 15
-
 let detropy = 2
 
 let noise (target : Ws2812b.color) { Ws2812b.r; g; b } =
@@ -37,14 +35,15 @@ let noise (target : Ws2812b.color) { Ws2812b.r; g; b } =
   }
 
 let stop = ref false
-
 let () = Sys.(set_signal sigint (Signal_handle (fun _ -> stop := true)))
 
-let () =
+open Lwt.Syntax
+
+let main () =
   let c = 0 in
   let rec loop (pattern, target) c =
     let counter = Mtime.counter () in
-    Ws2812b.output (Ws2812b.encode (pattern |> List.rev));
+    let* () = Ws2812b.output (Ws2812b.encode (pattern |> List.rev)) in
     let offset = Mtime.counter_value_us counter in
     Mtime.sleep_us (Int64.sub 16_000L offset);
     (* 60 FPS *)
@@ -55,3 +54,5 @@ let () =
       loop (pattern, next target) (c + 1)
   in
   loop (pattern, pattern) c
+
+  let () = Lwt_main.run (main ())
