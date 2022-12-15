@@ -186,7 +186,7 @@ module UART0 = struct
 
   let read () =
     (* wait for a byte to arrive *)
-    while Reg.Fr.(read receive_fifo_empty) do 
+    while Reg.Fr.(read receive_fifo_empty) do
       Mtime.sleep_us 10L
     done;
     (* read the byte *)
@@ -240,13 +240,11 @@ module UART0 = struct
       |> set overrun_error_interrupt_mask true
       |> set transmit_interrupt_mask true
       |> set receive_interrupt_mask true
-      |> write);
-    Mem.set_int Reg.Imsc.addr 0x7ff;
-    Mem.set_int Reg.Icr.addr 0x7ff;*)
+      |> write);*)
     Mem.set_int Reg.Imsc.addr 0x7ff;
     Mem.set_int Reg.Icr.addr 0x7ff;
     Mtime.sleep_us 10_000L;
     Sys.set_signal uart_irq_line (Sys.Signal_handle handler)
 
-  
+
 end

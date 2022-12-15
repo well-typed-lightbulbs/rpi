@@ -6,4 +6,4 @@ type frame
 val encode : color list -> frame
 
 (* Synchronously write the frame to the LEDs *)
-val output : frame -> unit
+val output : frame -> unit Lwt.t
