@@ -20,4 +20,6 @@ end) : sig
     val flush : unit -> unit Lwt.t
 
     val status : unit -> unit
+
+    val kill : unit -> unit Lwt.t
 end

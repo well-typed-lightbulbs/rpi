@@ -1,5 +1,5 @@
 (* 32 bit registers *)
-module Raw : sig 
+module Raw : sig
   type 'a field = {
     offset : int;
     size : int;
@@ -8,20 +8,16 @@ module Raw : sig
   }
 
   val int : size:int -> offset:int -> int field
-
   val bool : offset:int -> bool field
-
   val get : int -> 'a field -> 'a
 
   type value
 
   val empty : value
-
+  val of_int : int -> value
   val set : 'a field -> 'a -> value -> value
-
   val reg : value -> int
-end= struct
-
+end = struct
   type 'a field = {
     offset : int;
     size : int;
@@ -34,6 +30,7 @@ end= struct
 
   type value = int
 
+  let of_int = Fun.id
   let empty : value = 0
 
   let set { offset; size; to_int; _ } value (current : value) : value =
@@ -51,7 +48,6 @@ end= struct
     }
 
   let int ~size ~offset = { offset; size; to_int = Fun.id; of_int = Fun.id }
-  
 end
 
 module Make (B : sig
@@ -60,15 +56,12 @@ end) : sig
   include module type of Raw
 
   val read : 'a field -> 'a
-
   val write : value -> unit
-
   val addr : Mem.addr
 end = struct
   include Raw
-  let addr = B.addr
 
+  let addr = B.addr
   let read t = get (Mem.get_int B.addr) t
-  
   let write (v : value) = Mem.set_int B.addr (reg v)
 end

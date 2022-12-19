@@ -6,5 +6,12 @@
    (or
     (= %{context_name} "default")
     (= %{context_name} "rpi4_linux"))))
- (libraries rpi unix rpi.hardware-unix lwt.unix)
+ (libraries rpi unix rpi.hardware-unix lwt.unix ws2812b)
  (foreign_stubs (language c) (names main_stubs)))
+
+(rule
+ (targets music.ml)
+ (deps
+  (source_tree music))
+ (action
+  (run ocaml-crunch music/ -e bin -o music.ml -m plain)))

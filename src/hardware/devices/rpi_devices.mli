@@ -18,4 +18,9 @@ val dma : int -> nativeint
 val dma_registers_size : nativeint
 val mbox : nativeint
 val mbox_registers_size : nativeint
-val bus_to_phys : nativeint -> nativeint
+
+(* translate bus address for memory to physical address *)
+val mem_bus_to_phys : nativeint -> nativeint
+
+(* translate phys address for peripheral to bus address *)
+val peri_phys_to_bus : nativeint -> nativeint

@@ -25,4 +25,10 @@ let dma = function
 let dma_registers_size = 0x100n
 let mbox = offset 0xb880n
 let mbox_registers_size = 0x30n
-let bus_to_phys v = Nativeint.logand v (Nativeint.lognot 0xC0000000n)
+let mem_bus_to_phys v = Nativeint.logand v (Nativeint.lognot 0xC0000000n)
+let peri_bus_base = 0x7e000000n
+
+let peri_phys_to_bus v =
+  let ( + ) = Nativeint.add in
+  let ( - ) = Nativeint.sub in
+  v - Rpi_base.base + peri_bus_base
