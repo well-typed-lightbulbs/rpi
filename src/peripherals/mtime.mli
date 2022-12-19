@@ -18,7 +18,9 @@ val elapsed_us : unit -> span_us
 (** [elapsed ()] is the number of microseconds elasped since boot
         time. *)
 
-val sleep_us : span_us -> unit
+val sleep_us : span_us -> unit Lwt.t
+
+val sleep_us_sync : span_us -> unit
 (** [sleep_us d] blocks and sleeps for [d] microseconds. *)
 
 (** {1:counters Counters} *)

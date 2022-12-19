@@ -22,42 +22,39 @@ module Encoding = struct
     else state.bit_offset <- state.bit_offset + 1
 
   (* encode a bit as 1 -> 110, 0 -> 100 *)
-  let code state value =
-    if value then (
-      write state true;
-      write state true;
-      write state false)
-    else (
-      write state true;
-      write state false;
-      write state false)
+  let code ~multiplier state value =
+    for i = 0 to multiplier - 1 do
+      match i * 3 / multiplier with
+      | 0 -> write state true
+      | 1 -> write state value
+      | 2 -> write state false
+      | _ -> failwith "non"
+    done
 
   (* encode a color, msb first *)
-  let color_code state value =
+  let color_code ~multiplier state value =
     for i = 7 downto 0 do
-      code state (value land (1 lsl i) <> 0)
+      code ~multiplier state (value land (1 lsl i) <> 0)
     done
 
   (* encode a light pattern *)
-  let v pattern =
+  let v ~multiplier pattern =
     let length = List.length pattern in
-    let code_size = 3 * 24 * length in
+    let code_size = multiplier * 24 * length in
     let number_of_words = (code_size + 31) / 32 in
     let state =
       { buffer = Array.make number_of_words 0; word_offset = 0; bit_offset = 0 }
     in
     List.iter
       (fun { r; g; b } ->
-        color_code state g;
-        color_code state r;
-        color_code state b)
+        color_code ~multiplier state g;
+        color_code ~multiplier state r;
+        color_code ~multiplier state b)
       pattern;
     state.buffer
 end
 
 type frame = int array
-
-let encode = Encoding.v
 
 open Rpi
 
@@ -68,7 +65,7 @@ let down_time = 50L
 
 let wait_until_ready () =
   let current_time = Mtime.elapsed_us () in
-  if current_time > !next_write_after then ()
+  if current_time > !next_write_after then Lwt.return_unit
   else Mtime.sleep_us (Int64.sub !next_write_after current_time)
 
 let update_next_write_time () =
@@ -86,12 +83,22 @@ end)
 
 open Lwt.Syntax
 
+type t = { multiplier : int }
+
+let init v =
+  let+ v = Pwm.init () in
+  let multiplier = match v with Ok () -> 3 | Error freq -> freq / 800_000 in
+  assert (multiplier >= 3);
+  Printf.printf "multiplier: %d\n%!" multiplier;
+  { multiplier }
+
+let encode { multiplier } = Encoding.v ~multiplier
+
 let output data =
-  wait_until_ready ();
-  let* () = Pwm.init () in
-  let* () =
-    List.init (Array.length data - 1) Fun.id
-    |> Lwt_list.iter_s (fun i -> Pwm.write data.(i))
-  in
+  let* () = wait_until_ready () in
+  let* _ = Pwm.init () in
+  for i = 0 to Array.length data - 1 do
+    Pwm.write_sync data.(i)
+  done;
   let+ () = Pwm.stop () in
   update_next_write_time ()

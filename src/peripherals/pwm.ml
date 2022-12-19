@@ -65,6 +65,17 @@ struct
       let empt1 = bool ~offset:1
       let full1 = bool ~offset:0
       let gapo0 = bool ~offset:5
+      let berr = bool ~offset:8
+    end
+
+    module Dmac = struct
+      include Register.Make (struct
+        let addr = Mem.(base + 0x08n)
+      end)
+
+      let enab = bool ~offset:31
+      let dreq = int ~offset:0 ~size:8
+      let panic = int ~offset:8 ~size:8
     end
 
     let rng1 = Mem.(base + 0x10n)
@@ -84,6 +95,12 @@ struct
     let+ () = loop () in
     Mem.set_int Reg.fif1 int_val
 
+  let write_sync int_val =
+    while Reg.Sta.(read full1) do
+      ()
+    done;
+    Mem.set_int Reg.fif1 int_val
+
   let flush () =
     let rec loop () =
       if not Reg.Sta.(read empt1) then
@@ -97,6 +114,10 @@ struct
     Reg.Ctl.(empty |> set clrf true |> write);
     let+ () = flush () in
     Reg.Ctl.(write empty)
+
+  let status () =
+    Printf.printf "a: %08x\n%!" (Mem.get_int Reg.Sta.addr);
+    if Reg.Sta.(read berr) then Reg.Sta.(empty |> set berr true |> write)
 
   let init () =
     Mem.dmb ();
@@ -113,19 +134,32 @@ struct
     Mem.dmb ();
 
     (* PWM -> CLOCK *)
-    Mtime.sleep_us 10L;
-    Clock.kill ();
-    Mtime.sleep_us 10L;
-
-    Clock.set_pwm_clock Setting.freq;
-
+    let clock_result =
+      match Clock.freq () with
+      | Some v -> Error v
+      | None ->
+          Mtime.sleep_us_sync 10L;
+          Clock.kill ();
+          Mtime.sleep_us_sync 10L;
+          Clock.set_pwm_clock Setting.freq
+    in
     Mem.dmb ();
 
     (* CLOCK -> PWM *)
-    let+ () = stop () in
-    Mtime.sleep_us 2000L;
+    let* () = stop () in
+    let+ () = Mtime.sleep_us 2000L in
     Mem.set_int Reg.rng1 Setting.range;
     if Setting.is_stereo then Mem.set_int Reg.rng2 Setting.range;
+
+    Mtime.sleep_us_sync 10L;
+
+    Reg.Ctl.(empty |> set clrf true |> write);
+
+    Mtime.sleep_us_sync 10L;
+
+    Reg.Dmac.(empty |> set enab true |> set panic 7 |> set dreq 3 |> write);
+
+    Mtime.sleep_us_sync 10L;
 
     let open Reg.Ctl in
     let ch2 =
@@ -139,5 +173,6 @@ struct
       | Serial -> prev |> set mode1 true
       | Analog -> prev |> set mode1 false
     in
-    ch2 |> ch1 |> set_mode |> set clrf true |> write
+    ch2 |> ch1 |> set_mode |> write;
+    clock_result
 end

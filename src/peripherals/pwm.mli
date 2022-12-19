@@ -9,11 +9,15 @@ module Make (Setting : sig
     val range : int
     val is_stereo : bool
 end) : sig
-    val init : unit -> unit Lwt.t
+    val init : unit -> (unit, int) result Lwt.t
 
     val write : int -> unit Lwt.t
+
+    val write_sync : int -> unit
 
     val stop : unit -> unit Lwt.t
 
     val flush : unit -> unit Lwt.t
+
+    val status : unit -> unit
 end
