@@ -55,6 +55,8 @@ struct
       let pwen1 = bool ~offset:0
       let pwen2 = bool ~offset:8
       let clrf = bool ~offset:6
+      let rptl1 = bool ~offset:2
+      let sbit1 = bool ~offset:3
     end
 
     module Sta = struct
@@ -111,9 +113,13 @@ struct
     loop ()
 
   let stop () =
+    let ctl = Mem.get_int Reg.Ctl.addr in
+    Reg.Ctl.(of_int ctl |> set clrf true |> write);
+    Lwt.return_unit
+
+  let kill () =
     Reg.Ctl.(empty |> set clrf true |> write);
-    let+ () = flush () in
-    Reg.Ctl.(write empty)
+    Lwt.return_unit
 
   let status () =
     Printf.printf "a: %08x\n%!" (Mem.get_int Reg.Sta.addr);

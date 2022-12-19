@@ -55,8 +55,8 @@ end
 module Control_block = struct
   type t = {
     transfer_information : Transfer_information.t;
-    source_address : int;
-    destination_address : int;
+    source_address : Nativeint.t;
+    destination_address : Nativeint.t;
     transfer_length : int;
     stride : int;
     next_control_address : int;
@@ -77,8 +77,8 @@ module Control_block = struct
 
   type lite = {
     transfer_information : Transfer_information.t;
-    source_address : int;
-    destination_address : int;
+    source_address : Nativeint.t;
+    destination_address : Nativeint.t;
     transfer_length : int;
     next_control_address : int;
   }
@@ -98,9 +98,9 @@ module Control_block = struct
 
   type v4 = {
     transfer_information : Transfer_information.t;
-    source_address : int;
+    source_address : Nativeint.t;
     source_information : int; (* TODO *)
-    destination_address : int;
+    destination_address : Nativeint.t;
     destination_information : int; (* TODO *)
     transfer_length : int;
     next_control_address : int;
@@ -118,6 +118,39 @@ module Control_block = struct
     reserved0 : uint32_t;
   }
   [@@little_endian]]
+
+  let sizeof = sizeof_raw
+  let sizeof_4 = sizeof_raw_4
+  let sizeof_lite = sizeof_raw_lite
+
+  let write buf (v : t) =
+    set_raw_transfer_information buf
+      (Int32.of_int (Transfer_information.reg v.transfer_information));
+    set_raw_source_address buf (Nativeint.to_int32 v.source_address);
+    set_raw_destination_address buf (Nativeint.to_int32 v.destination_address);
+    set_raw_transfer_length buf (Int32.of_int v.transfer_length);
+    set_raw_stride buf (Int32.of_int v.stride);
+    set_raw_next_control_address buf (Int32.of_int v.next_control_address)
+
+  let write_4 buf (v : v4) =
+    set_raw_4_transfer_information buf
+      (Int32.of_int (Transfer_information.reg v.transfer_information));
+    set_raw_4_source_address buf (Nativeint.to_int32 v.source_address);
+    set_raw_4_source_information buf (Int32.of_int v.source_information);
+    set_raw_4_destination_address buf (Nativeint.to_int32 v.destination_address);
+    set_raw_4_destination_information buf
+      (Int32.of_int v.destination_information);
+    set_raw_4_transfer_length buf (Int32.of_int v.transfer_length);
+    set_raw_4_next_control_address buf (Int32.of_int v.next_control_address)
+
+  let write_lite buf (v : lite) =
+    set_raw_lite_transfer_information buf
+      (Int32.of_int (Transfer_information.reg v.transfer_information));
+    set_raw_lite_source_address buf (Nativeint.to_int32 v.source_address);
+    set_raw_lite_destination_address buf
+      (Nativeint.to_int32 v.destination_address);
+    set_raw_lite_transfer_length buf (Int32.of_int v.transfer_length);
+    set_raw_lite_next_control_address buf (Int32.of_int v.next_control_address)
 end
 
 type dma = DMA | DMA_Lite | DMA4

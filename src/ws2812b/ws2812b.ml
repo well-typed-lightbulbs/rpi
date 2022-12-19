@@ -37,11 +37,15 @@ module Encoding = struct
       code ~multiplier state (value land (1 lsl i) <> 0)
     done
 
+  let size ~multiplier length =
+    let code_size = multiplier * 24 * length in
+    (* we add one because the last frame has to be zeros. otherwise it's repeated *)
+    ((code_size + 31) / 32) + 1
+
   (* encode a light pattern *)
   let v ~multiplier pattern =
     let length = List.length pattern in
-    let code_size = multiplier * 24 * length in
-    let number_of_words = (code_size + 31) / 32 in
+    let number_of_words = size ~multiplier length in
     let state =
       { buffer = Array.make number_of_words 0; word_offset = 0; bit_offset = 0 }
     in
@@ -52,6 +56,12 @@ module Encoding = struct
         color_code ~multiplier state b)
       pattern;
     state.buffer
+
+  let write ~multiplier buf pattern =
+    let array = v ~multiplier pattern in
+    for i = 0 to Array.length array - 1 do
+      Cstruct.LE.set_uint32 buf (4 * i) (Array.get array i |> Int32.of_int)
+    done
 end
 
 type frame = int array
@@ -85,7 +95,7 @@ open Lwt.Syntax
 
 type t = { multiplier : int }
 
-let init v =
+let init () =
   let+ v = Pwm.init () in
   let multiplier = match v with Ok () -> 3 | Error freq -> freq / 800_000 in
   assert (multiplier >= 3);
@@ -102,3 +112,8 @@ let output data =
   done;
   let+ () = Pwm.stop () in
   update_next_write_time ()
+
+let encoded_size { multiplier } len = 4 * Encoding.size ~multiplier len
+
+let write_cstruct { multiplier } buff data =
+  Encoding.write ~multiplier buff data
