@@ -85,23 +85,32 @@ let wait_until_busy () =
     ()
   done
 
+let clock_freq = ref None
+
+let freq () = !clock_freq
+
 let set_pwm_clock freq =
-  Mem.dmb ();
-  Reg.Cm_pwmdiv.(
-    empty |> set password () |> set divi (crystal_frequency / freq) |> write);
-  Reg.Cm_pwmctl.(empty |> set password () |> write);
-  Reg.Cm_pwmctl.(empty |> set password () |> set source OSC |> write);
-  Mtime.sleep_us 10L;
-  Reg.Cm_pwmctl.(
-    empty |> set password () |> set source OSC |> set enable true |> write);
-  wait_until_busy ()
+  match !clock_freq with
+  | Some v -> Error v
+  | None ->
+      Mem.dmb ();
+      Reg.Cm_pwmdiv.(
+        empty |> set password () |> set divi (crystal_frequency / freq) |> write);
+      Reg.Cm_pwmctl.(empty |> set password () |> write);
+      Reg.Cm_pwmctl.(empty |> set password () |> set source OSC |> write);
+      Mtime.sleep_us_sync 10L;
+      Reg.Cm_pwmctl.(
+        empty |> set password () |> set source OSC |> set enable true |> write);
+      wait_until_busy ();
+      clock_freq := Some freq;
+      Ok ()
 
 let password = 0x5a lsl 24
 
 let kill () =
   Reg.Cm_pwmctl.(empty |> set password () |> write);
   (* set zero *)
-  Mtime.sleep_us 10L;
+  Mtime.sleep_us_sync 10L;
   Reg.Cm_pwmctl.(empty |> set password () |> set kill true |> write);
   (* set kill*)
   wait_while_busy ()

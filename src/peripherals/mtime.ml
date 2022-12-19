@@ -27,12 +27,28 @@ let elapsed_us () =
   let ( lor ) = Int64.logor in
   (Int64.of_int high_32 lsl 32) lor Int64.of_int low_32
 
-let sleep_us d =
+open Lwt.Syntax
+
+let sleep_us_sync d =
   (* That's a bit wasteful and unprecise because of allocs, FIXME
      wfi + timer IRQ *)
   let rec loop start =
     let e = Int64.sub (elapsed_us ()) start in
-    if Int64.compare e d < 0 then loop start else ()
+    if Int64.compare e d < 0 then
+      loop start
+      else ()
+  in
+  loop (elapsed_us ())
+
+let sleep_us d =
+  (* That's a bit wasteful and unprecise because of allocs, FIXME
+      wfi + timer IRQ *)
+  let rec loop start =
+    let e = Int64.sub (elapsed_us ()) start in
+    if Int64.compare e d < 0 then
+      let* () = Lwt.pause () in
+        loop start
+      else Lwt.return_unit
   in
   loop (elapsed_us ())
 
@@ -71,7 +87,7 @@ let schedule_next_interrupt line target =
   in
   Mem.set_int timer_compare (Int64.to_int target)
 
-let acknowledge_interrupt line = 
+let acknowledge_interrupt line =
   let cs = match line with
     | L0 -> 0b0001
     | L1 -> 0b0010
