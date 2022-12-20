@@ -32,6 +32,8 @@ module Control_block : sig
   }
 
   val sizeof : int
+  val set_raw_next_control_address : Cstruct.t -> Int32.t -> unit
+  val set_raw_transfer_length : Cstruct.t -> Int32.t -> unit
   val write : Cstruct.t -> t -> unit
 
   type lite = {
@@ -98,6 +100,8 @@ module Make : functor
       val int : bool field
       val end' : bool field
       val active : bool field
+      val priority : int field
+      val panic_priority : int field
     end
 
     module Conblk_ad : sig
@@ -120,6 +124,50 @@ module Make : functor
       val read : 'a field -> 'a
       val write : value -> unit
       val addr : int field
+    end
+
+    module Source_ad : sig
+      type 'a field = {
+        offset : int;
+        size : int;
+        to_int : 'a -> int;
+        of_int : int -> 'a;
+      }
+
+      val int : size:int -> offset:int -> int field
+      val bool : offset:int -> bool field
+      val get : int -> 'a field -> 'a
+
+      type value
+
+      val empty : value
+      val set : 'a field -> 'a -> value -> value
+      val reg : value -> int
+      val read : 'a field -> 'a
+      val write : value -> unit
+      val addr : int field
+    end
+
+    module Txfr_len : sig
+      type 'a field = {
+        offset : int;
+        size : int;
+        to_int : 'a -> int;
+        of_int : int -> 'a;
+      }
+
+      val int : size:int -> offset:int -> int field
+      val bool : offset:int -> bool field
+      val get : int -> 'a field -> 'a
+
+      type value
+
+      val empty : value
+      val set : 'a field -> 'a -> value -> value
+      val reg : value -> int
+      val read : 'a field -> 'a
+      val write : value -> unit
+      val len : int field
     end
 
     module Debug : sig
