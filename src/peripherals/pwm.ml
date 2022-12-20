@@ -42,8 +42,10 @@ struct
     | Some inst -> inst
 
   module Reg = struct
+    open Register
+
     module Ctl = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = base
       end)
 
@@ -60,7 +62,7 @@ struct
     end
 
     module Sta = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.(offset base 0x04)
       end)
 
@@ -71,7 +73,7 @@ struct
     end
 
     module Dmac = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.(offset base 0x08)
       end)
 
@@ -89,7 +91,7 @@ struct
 
   let write int_val =
     let rec loop () =
-      if Reg.Sta.(read full1) then
+      if Reg.Sta.(read () && full1) then
         let* () = Lwt.pause () in
         loop ()
       else Lwt.return_unit
@@ -98,14 +100,14 @@ struct
     Mem.set_int Reg.fif1 int_val
 
   let write_sync int_val =
-    while Reg.Sta.(read full1) do
+    while Reg.Sta.(read () && full1) do
       ()
     done;
     Mem.set_int Reg.fif1 int_val
 
   let flush () =
     let rec loop () =
-      if not Reg.Sta.(read empt1) then
+      if not Reg.Sta.(read () && empt1) then
         let* () = Lwt.pause () in
         loop ()
       else Lwt.return_unit
@@ -113,8 +115,7 @@ struct
     loop ()
 
   let stop () =
-    let ctl = Mem.get_int Reg.Ctl.addr in
-    Reg.Ctl.(of_int ctl |> set clrf true |> write);
+    Reg.Ctl.(read () |> set clrf true |> write);
     Lwt.return_unit
 
   let kill () =
@@ -122,8 +123,7 @@ struct
     Lwt.return_unit
 
   let status () =
-    Printf.printf "a: %08x\n%!" (Mem.get_int Reg.Sta.addr);
-    if Reg.Sta.(read berr) then Reg.Sta.(empty |> set berr true |> write)
+    if Reg.Sta.(read () && berr) then Reg.Sta.(empty |> set berr true |> write)
 
   let init () =
     Mem.dmb ();

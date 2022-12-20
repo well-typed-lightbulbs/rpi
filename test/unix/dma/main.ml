@@ -138,8 +138,8 @@ let led_strip_main () =
 
     let rec wait_until_ready () =
       if
-        (not (DD.Reg.Cs.(read end') || DD.Reg.Cs.(read error)))
-        && DD.Reg.Cs.(read active)
+        (not (DD.Reg.Cs.(read () && end') || DD.Reg.Cs.(read () && error)))
+        && DD.Reg.Cs.(read () && active)
       then (
         let* () = Lwt.pause () in
         Mem.dmb ();
@@ -151,7 +151,7 @@ let led_strip_main () =
     if !stop then raise (Failure "stopped");
 
     led_pattern := cycle !led_pattern;
-    if DD.Reg.Cs.(read end') then () else Printf.printf "\nno\n%!";
+    if DD.Reg.Cs.(read () && end') then () else Printf.printf "\nno\n%!";
     loop ()
   in
   let+ () = loop () in
@@ -277,12 +277,14 @@ let play_music () =
   (* wait for finish *)
   let rec loop () =
     if
-      (not DDAudio.Reg.Cs.(read active)) || DDAudio.Reg.Cs.(read error) || !stop
+      (not DDAudio.Reg.Cs.(read () && active))
+      || DDAudio.Reg.Cs.(read () && error)
+      || !stop
     then if !stop then raise (Failure "done") else Lwt.return_unit
     else
       let* () = Lwt.pause () in
       Mem.dmb ();
-      let current_control_block = DDAudio.Reg.Conblk_ad.(read addr) in
+      let current_control_block = DDAudio.Reg.Conblk_ad.(read () && addr) in
       if current_control_block <> !previous_control_block then (
         Printf.printf "%08x => %08x\n%!" !previous_control_block
           current_control_block;

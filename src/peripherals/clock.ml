@@ -4,6 +4,8 @@ let base = Rpi_hardware.clock
 let crystal_frequency = Rpi_hardware.crystal_frequency
 
 module Reg = struct
+  open Register
+
   module Cm_pwmdiv = struct
     include Register.Make (struct
       let addr = Mem.(offset base 0xa4)
@@ -73,12 +75,12 @@ let cm_pwmctl = Mem.(offset base 0xa0)
 (*  let div_divi value = (value land 0xfff) lsl 12*)
 
 let wait_while_busy () =
-  while Reg.Cm_pwmctl.(read busy) do
+  while Reg.Cm_pwmctl.(read () && busy) do
     ()
   done
 
 let wait_until_busy () =
-  while not Reg.Cm_pwmctl.(read busy) do
+  while not Reg.Cm_pwmctl.(read () && busy) do
     ()
   done
 

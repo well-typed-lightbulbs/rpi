@@ -1,5 +1,6 @@
 module Transfer_information : sig
-  include module type of Register.Raw
+  open Register
+  include Raw_S
 
   val interrupt_enable : bool field
   val two_d_mode : bool field
@@ -73,25 +74,11 @@ module Make : functor
   val base : Optint.t
 
   module Reg : sig
+    open Register
+
     module Cs : sig
-      type 'a field = {
-        offset : int;
-        size : int;
-        to_int : 'a -> int;
-        of_int : int -> 'a;
-      }
+      include S
 
-      val bool : offset:int -> bool field
-      val get : int -> 'a field -> 'a
-
-      type value
-
-      val empty : value
-      val set : 'a field -> 'a -> value -> value
-      val reg : value -> int
-      val read : 'a field -> 'a
-      val write : value -> unit
-      val addr : Optint.t
       val reset : bool field
       val abort : bool field
       val disdebug : bool field
@@ -105,90 +92,26 @@ module Make : functor
     end
 
     module Conblk_ad : sig
-      type 'a field = {
-        offset : int;
-        size : int;
-        to_int : 'a -> int;
-        of_int : int -> 'a;
-      }
+      include S
 
-      val int : size:int -> offset:int -> int field
-      val bool : offset:int -> bool field
-      val get : int -> 'a field -> 'a
-
-      type value
-
-      val empty : value
-      val set : 'a field -> 'a -> value -> value
-      val reg : value -> int
-      val read : 'a field -> 'a
-      val write : value -> unit
       val addr : int field
     end
 
     module Source_ad : sig
-      type 'a field = {
-        offset : int;
-        size : int;
-        to_int : 'a -> int;
-        of_int : int -> 'a;
-      }
+      include S
 
-      val int : size:int -> offset:int -> int field
-      val bool : offset:int -> bool field
-      val get : int -> 'a field -> 'a
-
-      type value
-
-      val empty : value
-      val set : 'a field -> 'a -> value -> value
-      val reg : value -> int
-      val read : 'a field -> 'a
-      val write : value -> unit
       val addr : int field
     end
 
     module Txfr_len : sig
-      type 'a field = {
-        offset : int;
-        size : int;
-        to_int : 'a -> int;
-        of_int : int -> 'a;
-      }
+      include S
 
-      val int : size:int -> offset:int -> int field
-      val bool : offset:int -> bool field
-      val get : int -> 'a field -> 'a
-
-      type value
-
-      val empty : value
-      val set : 'a field -> 'a -> value -> value
-      val reg : value -> int
-      val read : 'a field -> 'a
-      val write : value -> unit
       val len : int field
     end
 
     module Debug : sig
-      type 'a field = {
-        offset : int;
-        size : int;
-        to_int : 'a -> int;
-        of_int : int -> 'a;
-      }
+      include S
 
-      val int : size:int -> offset:int -> int field
-      val bool : offset:int -> bool field
-      val get : int -> 'a field -> 'a
-
-      type value
-
-      val empty : value
-      val set : 'a field -> 'a -> value -> value
-      val reg : value -> int
-      val read : 'a field -> 'a
-      val write : value -> unit
       val addr : Optint.t
     end
   end
