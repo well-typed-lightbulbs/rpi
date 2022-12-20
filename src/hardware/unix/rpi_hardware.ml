@@ -1,5 +1,12 @@
 external mmap : nativeint -> nativeint -> nativeint = "caml_mmap"
 
+external ba_mmap :
+  ('a, 'b) Stdlib.Bigarray.kind ->
+  'c Stdlib.Bigarray.layout ->
+  nativeint ->
+  nativeint ->
+  ('a, 'b, 'c) Stdlib.Bigarray.Genarray.t = "caml_ba_mmap"
+
 open Rpi_devices
 
 let mmap a b =
@@ -20,3 +27,22 @@ let armcore_irq_controller =
 
 let dma n = mmap (dma n) dma_registers_size
 let mbox = mmap mbox mbox_registers_size
+
+let map_bigarray addr size =
+  ba_mmap Bigarray.char Bigarray.c_layout
+    (addr |> Optint.to_int |> Nativeint.of_int)
+    (size |> Nativeint.of_int)
+  |> Bigarray.array1_of_genarray
+
+type file_descr
+
+external vcio_open : unit -> file_descr = "caml_vcio_open"
+
+external vcio_write :
+  file_descr ->
+  (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t ->
+  unit = "caml_vcio_write"
+
+(* TODO: close ?*)
+let mbox_fd = vcio_open ()
+let mbox_request = vcio_write mbox_fd

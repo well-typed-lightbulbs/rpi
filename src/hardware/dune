@@ -1,5 +1,5 @@
 (library
  (name rpi_hardware)
- (libraries optint)
+ (libraries optint cstruct)
  (public_name rpi.hardware)
  (virtual_modules rpi_hardware))
