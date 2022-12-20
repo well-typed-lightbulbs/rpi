@@ -17,7 +17,7 @@ module UART0 = struct
 
     module Fr = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x18n)
+        let addr = Mem.offset base 0x18
       end)
 
       let receive_fifo_empty = bool ~offset:4
@@ -26,7 +26,7 @@ module UART0 = struct
 
     module Imsc = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x38n)
+        let addr = Mem.offset base 0x38
       end)
 
       let modem_interrupt_mask = bool ~offset:1
@@ -41,7 +41,7 @@ module UART0 = struct
 
     module Icr = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x44n)
+        let addr = Mem.offset base 0x44
       end)
 
       let modem_interrupt_clear = bool ~offset:1
@@ -56,7 +56,7 @@ module UART0 = struct
 
     module Ibrd = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x24n)
+        let addr = Mem.offset base 0x24
       end)
 
       let integer_baud_rate_divisor = int ~offset:0 ~size:16
@@ -64,7 +64,7 @@ module UART0 = struct
 
     module Fbrd = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x28n)
+        let addr = Mem.offset base 0x28
       end)
 
       let fractional_baud_rate_divisor = int ~offset:0 ~size:6
@@ -72,7 +72,7 @@ module UART0 = struct
 
     module Ifls = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x34n)
+        let addr = Mem.offset base 0x34
       end)
 
       type interrupt_fifo_level = F1_8 | F1_4 | F1_2 | F3_4 | F7_8
@@ -101,7 +101,7 @@ module UART0 = struct
 
     module Lcrh = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x2cn)
+        let addr = Mem.offset base 0x2c
       end)
 
       let stick_parity_select = bool ~offset:7
@@ -131,7 +131,7 @@ module UART0 = struct
 
     module Cr = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x30n)
+        let addr = Mem.offset base 0x30
       end)
 
       let cts_hardware_control_flow = bool ~offset:15
@@ -145,13 +145,13 @@ module UART0 = struct
 
     module Ris = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x3cn)
+        let addr = Mem.offset base 0x3c
       end)
     end
 
     module Mis = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x40n)
+        let addr = Mem.offset base 0x40
       end)
     end
   end
@@ -182,12 +182,12 @@ module UART0 = struct
   let stream, push = Lwt_stream.create ()
   let read_byte () = Lwt_stream.next stream
   let state = Ke.Rke.create ~capacity:1024 Bigarray.Int
-  let pactl_cs = Mem.(Rpi_base.base + 0x204e00n)
+  let pactl_cs = Mem.offset base 0x204e00
 
   let read () =
     (* wait for a byte to arrive *)
     while Reg.Fr.(read receive_fifo_empty) do
-      Mtime.sleep_us 10L
+      Mtime.sleep_us_sync 10L
     done;
     (* read the byte *)
     Reg.Dr.(read data)
@@ -243,8 +243,6 @@ module UART0 = struct
       |> write);*)
     Mem.set_int Reg.Imsc.addr 0x7ff;
     Mem.set_int Reg.Icr.addr 0x7ff;
-    Mtime.sleep_us 10_000L;
+    Mtime.sleep_us_sync 10_000L;
     Sys.set_signal uart_irq_line (Sys.Signal_handle handler)
-
-
 end

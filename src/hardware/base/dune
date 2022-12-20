@@ -1,5 +1,6 @@
 (library
  (name rpi_base)
  (public_name rpi.base)
+ (libraries optint)
  (default_implementation rpi.base-rpi4)
  (virtual_modules rpi_base))

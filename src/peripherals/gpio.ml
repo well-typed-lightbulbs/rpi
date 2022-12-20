@@ -2,28 +2,19 @@ let base = Rpi_hardware.gpio
 
 (* GPIO addresses *)
 
-let gp_sel0 = Mem.(base + 0x00n)
-
-let gp_set0 = Mem.(base + 0x1Cn)
-
-let gp_set1 = Mem.(base + 0x20n)
-
-let gp_clr0 = Mem.(base + 0x28n)
-
-let gp_clr1 = Mem.(base + 0x2Cn)
-
-let gp_lev0 = Mem.(base + 0x34n)
-
-let gp_lev1 = Mem.(base + 0x38n)
-
-let gp_pud = Mem.(base + 0x94n)
-
-let gp_pudclk0 = Mem.(base + 0x98n)
-
-let gp_pudclk1 = Mem.(base + 0x98n)
+let gp_sel0 = Mem.offset base 0x00
+let gp_set0 = Mem.offset base 0x1C
+let gp_set1 = Mem.offset base 0x20
+let gp_clr0 = Mem.offset base 0x28
+let gp_clr1 = Mem.offset base 0x2C
+let gp_lev0 = Mem.offset base 0x34
+let gp_lev1 = Mem.offset base 0x38
+let gp_pud = Mem.offset base 0x94
+let gp_pudclk0 = Mem.offset base 0x98
+let gp_pudclk1 = Mem.offset base 0x98
 
 (* Pins *)
-type pin = P00 | P01 | P02 | P03 | P04 | P05 | P06 | P07 | P08 | P09 | P10 
+type pin = P00 | P01 | P02 | P03 | P04 | P05 | P06 | P07 | P08 | P09 | P10
   | P11 | P12 | P13 | P14 | P15 | P16 | P17 | P18 | P19 | P20 | P21 | P22 | P23
   | P24 | P25 | P26 | P27 | P28 | P29 | P30 | P31 | P32 | P33 | P34 | P35 | P36
   | P37 | P38 | P39 | P40 | P41 | P42 | P43 | P44 | P45 | P46 | P47 | P48 | P49
@@ -75,9 +66,6 @@ let set p b =
 
 let get p =
   let p = pin_to_int p in
-  let r, n =
-    if p > 31 then (gp_lev1, p land 31)
-    else (gp_lev0, p)
-  in
+  let r, n = if p > 31 then (gp_lev1, p land 31) else (gp_lev0, p) in
   let i = Mem.get_int r in
   i land (1 lsl n) <> 0

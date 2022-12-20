@@ -55,11 +55,11 @@ end
 module Control_block = struct
   type t = {
     transfer_information : Transfer_information.t;
-    source_address : Nativeint.t;
-    destination_address : Nativeint.t;
+    source_address : Optint.t;
+    destination_address : Optint.t;
     transfer_length : int;
     stride : int;
-    next_control_address : int;
+    next_control_address : Optint.t;
   }
 
   [%%cstruct
@@ -77,10 +77,10 @@ module Control_block = struct
 
   type lite = {
     transfer_information : Transfer_information.t;
-    source_address : Nativeint.t;
-    destination_address : Nativeint.t;
+    source_address : Optint.t;
+    destination_address : Optint.t;
     transfer_length : int;
-    next_control_address : int;
+    next_control_address : Optint.t;
   }
 
   [%%cstruct
@@ -98,12 +98,12 @@ module Control_block = struct
 
   type v4 = {
     transfer_information : Transfer_information.t;
-    source_address : Nativeint.t;
+    source_address : Optint.t;
     source_information : int; (* TODO *)
-    destination_address : Nativeint.t;
+    destination_address : Optint.t;
     destination_information : int; (* TODO *)
     transfer_length : int;
-    next_control_address : int;
+    next_control_address : Optint.t;
   }
 
   [%%cstruct
@@ -126,31 +126,31 @@ module Control_block = struct
   let write buf (v : t) =
     set_raw_transfer_information buf
       (Int32.of_int (Transfer_information.reg v.transfer_information));
-    set_raw_source_address buf (Nativeint.to_int32 v.source_address);
-    set_raw_destination_address buf (Nativeint.to_int32 v.destination_address);
+    set_raw_source_address buf (Optint.to_int32 v.source_address);
+    set_raw_destination_address buf (Optint.to_int32 v.destination_address);
     set_raw_transfer_length buf (Int32.of_int v.transfer_length);
     set_raw_stride buf (Int32.of_int v.stride);
-    set_raw_next_control_address buf (Int32.of_int v.next_control_address)
+    set_raw_next_control_address buf (Optint.to_int32 v.next_control_address)
 
   let write_4 buf (v : v4) =
     set_raw_4_transfer_information buf
       (Int32.of_int (Transfer_information.reg v.transfer_information));
-    set_raw_4_source_address buf (Nativeint.to_int32 v.source_address);
+    set_raw_4_source_address buf (Optint.to_int32 v.source_address);
     set_raw_4_source_information buf (Int32.of_int v.source_information);
-    set_raw_4_destination_address buf (Nativeint.to_int32 v.destination_address);
+    set_raw_4_destination_address buf (Optint.to_int32 v.destination_address);
     set_raw_4_destination_information buf
       (Int32.of_int v.destination_information);
     set_raw_4_transfer_length buf (Int32.of_int v.transfer_length);
-    set_raw_4_next_control_address buf (Int32.of_int v.next_control_address)
+    set_raw_4_next_control_address buf (Optint.to_int32 v.next_control_address)
 
   let write_lite buf (v : lite) =
     set_raw_lite_transfer_information buf
       (Int32.of_int (Transfer_information.reg v.transfer_information));
-    set_raw_lite_source_address buf (Nativeint.to_int32 v.source_address);
-    set_raw_lite_destination_address buf
-      (Nativeint.to_int32 v.destination_address);
+    set_raw_lite_source_address buf (Optint.to_int32 v.source_address);
+    set_raw_lite_destination_address buf (Optint.to_int32 v.destination_address);
     set_raw_lite_transfer_length buf (Int32.of_int v.transfer_length);
-    set_raw_lite_next_control_address buf (Int32.of_int v.next_control_address)
+    set_raw_lite_next_control_address buf
+      (Optint.to_int32 v.next_control_address)
 end
 
 type dma = DMA | DMA_Lite | DMA4
@@ -189,7 +189,7 @@ struct
     module Conblk_ad = struct
       (* Control Block Address *)
       include Register.Make (struct
-        let addr = Mem.(base + 0x4n)
+        let addr = Mem.offset base 0x4
       end)
 
       let addr = int ~size:32 ~offset:0
@@ -197,7 +197,7 @@ struct
 
     module Source_ad = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x0cn)
+        let addr = Mem.offset base 0x0c
       end)
 
       let addr = int ~size:32 ~offset:0
@@ -205,7 +205,7 @@ struct
 
     module Txfr_len = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x14n)
+        let addr = Mem.offset base 0x14
       end)
 
       (* xlen *)
@@ -214,7 +214,7 @@ struct
 
     module Debug = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x20n)
+        let addr = Mem.offset base 0x20
       end)
     end
   end

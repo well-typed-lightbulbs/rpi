@@ -5,7 +5,7 @@
 
 (** {1:addr Addresses} *)
 
-type addr = nativeint
+type addr = Optint.t
 (** The type for byte addresses. *)
 
 val ( + ) : addr -> addr -> addr
@@ -56,38 +56,3 @@ val set_int : addr -> int -> unit
 val set_int_bits : addr -> bits:int -> int -> unit
 (** [masked_set_int] is like {!set_int} but only affects the bits set
       in [bits]. *)
-
-(** Memory maps *)
-module Map : sig
-  (** {1 Maps} *)
-
-  type ('a, 'b) t = ('a, 'b, Bigarray.c_layout) Bigarray.Array1.t
-  (** The type for memory maps. *)
-
-  type bytes = (int, Bigarray.int8_unsigned_elt) t
-  (** The type for byte memory maps. *)
-
-  type int32s = (int32, Bigarray.int32_elt) t
-  (** The type for int32 memory maps. *)
-
-  type int64s = (int64, Bigarray.int64_elt) t
-  (** The type for int64 memory maps. *)
-
-  val length : ('a, 'b) t -> int
-  (** [length m] is [m]'s scalar length. *)
-
-  val byte_length : ('a, 'b) t -> int
-  (** [byte_length m] is [m]'s byte length. *)
-
-  val base : ('a, 'b) t -> addr
-  (** [base m] is [m]'s base address. *)
-
-  val bytes : addr -> len:int -> bytes
-  (** [bytes a len] maps [len] bytes starting at [a]. *)
-
-  val int32s : addr -> len:int -> int32s
-  (** [int32s a len] maps [len] int32 values starting at [a]. *)
-
-  val int64s : addr -> len:int -> int64s
-  (** [map_int64 a len] maps [len] int64 values starting at [a]. *)
-end

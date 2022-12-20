@@ -27,8 +27,9 @@ CAMLprim value caml_mmap(value caml_base, value caml_size)
         return 0;
 
     }
-    printf("mmap: %016x\n", base);
+    printf("mmap: %016x\r", base);
     mem = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, base & pagemask);
+    printf("mmap: %016x => %016lx (%016lx)\n", base, mem, ((uint64_t)mem) + (base & offsetmask));
     if (mem == MAP_FAILED)
     {
         perror("mmap error\n");
