@@ -116,27 +116,26 @@ let led_strip_main () =
 
   let led_pattern = ref led_pattern in
 
+  Mem.dmb ();
+  DD.Reg.Cs.(empty |> set reset true |> write);
   Printf.printf "LED> READY%!";
   let rec loop () =
     Printf.printf ">%!";
-    Mtime.sleep_us_sync 1000L;
-    Mem.dmb ();
+    let* () = Mtime.sleep_us 10_000L in
     Ws2812b.write_cstruct ws led_data !led_pattern;
-    Mem.dmb ();
-    Mtime.sleep_us_sync 1000L;
-    DD.Reg.Cs.(empty |> set reset true |> write);
-    Mem.dmb ();
-    Mtime.sleep_us_sync 10L;
+    let* () = Mtime.sleep_us 10L in
     Mem.dmb ();
     DD.Reg.Cs.(empty |> set end' true |> set int true |> write);
     Mem.dmb ();
-    Mtime.sleep_us_sync 10L;
+    let* () = Mtime.sleep_us 10L in
 
     Mem.dmb ();
     DD.Reg.Conblk_ad.(
       empty |> set addr (control_block_addr |> Nativeint.to_int) |> write);
     DD.Reg.Cs.(
-      empty |> set active true |> set wait_for_outstanding_writes true |> write);
+      empty |> set active true |> set priority 8 |> set panic_priority 15
+      |> set wait_for_outstanding_writes true
+      |> write);
 
     let rec wait_until_ready () =
       if
@@ -151,12 +150,13 @@ let led_strip_main () =
     let* () = wait_until_ready () in
 
     if !stop then raise (Failure "stopped");
-    led_pattern := cycle !led_pattern;
 
+    led_pattern := cycle !led_pattern;
     if DD.Reg.Cs.(read end') then () else Printf.printf "\nno\n%!";
     loop ()
   in
-  loop ()
+  let+ () = loop () in
+  Printf.printf "LED FINISHED \n%!"
 
 let () = Sys.(set_signal sigint (Signal_handle (fun _ -> stop := true)))
 
@@ -168,23 +168,39 @@ let ( let+-+ ) (range, cut) fn =
   aux 0
 
 let play_music () =
-  let music = Music.read "/papa_noel.bin" |> Option.get in
+  let music = Music.read "/silent_night.bin" |> Option.get in
   let size = String.length music in
 
-  let buffer_size = 1_00_000 in
+  let buffer_size = 1024 * 1024 in
   Printf.printf "Music %d\n%!" size;
 
   with_buffer Rpi.DMA.Control_block.sizeof @@ fun control_block_addr ->
+  let control_block_addr = Nativeint.logand control_block_addr 0xffffffffn in
+  with_buffer Rpi.DMA.Control_block.sizeof @@ fun control_block_addr_2 ->
+  let control_block_addr_2 =
+    Nativeint.logand control_block_addr_2 0xffffffffn
+  in
   with_buffer buffer_size @@ fun music_data_addr ->
+  with_buffer buffer_size @@ fun music_data_addr_2 ->
   Printf.printf "Setting up..\n%!";
   let control_block =
     mmap_cstruct
       (Rpi_devices.mem_bus_to_phys control_block_addr)
       (Nativeint.of_int Rpi.DMA.Control_block.sizeof)
   in
+  let control_block_2 =
+    mmap_cstruct
+      (Rpi_devices.mem_bus_to_phys control_block_addr_2)
+      (Nativeint.of_int Rpi.DMA.Control_block.sizeof)
+  in
   let music_data =
     mmap_cstruct
       (Rpi_devices.mem_bus_to_phys music_data_addr)
+      (Nativeint.of_int size)
+  in
+  let music_data_2 =
+    mmap_cstruct
+      (Rpi_devices.mem_bus_to_phys music_data_addr_2)
       (Nativeint.of_int size)
   in
   Printf.printf "CB..\n%!";
@@ -206,26 +222,55 @@ let play_music () =
       destination_address = Mem.(Rpi_devices.(peri_phys_to_bus pwm1) + 0x18n);
       transfer_length = buffer_size;
       stride = 0;
-      next_control_address = 0;
+      next_control_address = control_block_addr_2 |> Nativeint.to_int;
+    };
+  Rpi.DMA.Control_block.write control_block_2
+    {
+      transfer_information = ti;
+      source_address = music_data_addr_2;
+      (* FIF1 *)
+      destination_address = Mem.(Rpi_devices.(peri_phys_to_bus pwm1) + 0x18n);
+      transfer_length = buffer_size;
+      stride = 0;
+      next_control_address = control_block_addr |> Nativeint.to_int;
     };
   Printf.printf "PWM..\n%!";
   (* PWM init *)
   let* _ = PwmAudio.init () in
   Printf.printf "Ready..\n%!";
-  (* we cut the music in small pieces *)
-  let+-+ start, stop' = (size, buffer_size / 4) in
-  Printf.printf "%d => %d\n%!" start stop';
-  (* load the piece *)
-  for i = start to stop' - 1 do
-    Cstruct.LE.set_uint32 music_data
-      ((i - start) * 4)
+  (* initial load of the piece *)
+  for i = 0 to buffer_size / 4 do
+    Cstruct.LE.set_uint32 music_data (i * 4)
       (Int32.of_int (Char.code music.[i]))
   done;
   (* DMA init *)
   Mem.dmb ();
   DDAudio.Reg.Cs.(empty |> set reset true |> write);
+  Mtime.sleep_us_sync 10L;
   DDAudio.Reg.Cs.(empty |> set end' true |> set int true |> write);
   Mem.dmb ();
+
+  (* Double buffering state *)
+  let prepare =
+    let position = ref 0 in
+    fun control_block music_data ->
+      let remaining = size - !position in
+      if 4 * remaining <= buffer_size then
+        Rpi.DMA.Control_block.set_raw_next_control_address control_block 0l;
+      let n_words = min (buffer_size / 4) remaining in
+      Rpi.DMA.Control_block.set_raw_transfer_length control_block
+        (Int32.of_int (n_words * 4));
+      for i = 0 to n_words do
+        Cstruct.LE.set_uint32 music_data (i * 4)
+          (Int32.of_int (Char.code music.[!position + i]))
+      done;
+      position := !position + n_words;
+      ()
+  in
+
+  (* Prepare buffers *)
+  prepare control_block music_data;
+  prepare control_block_2 music_data_2;
 
   (* send the piece *)
   DDAudio.Reg.Conblk_ad.(
@@ -233,13 +278,25 @@ let play_music () =
   DDAudio.Reg.Cs.(
     empty |> set active true |> set wait_for_outstanding_writes true |> write);
 
+  let previous_control_block = ref (Nativeint.to_int control_block_addr) in
   (* wait for finish *)
   let rec loop () =
-    if DDAudio.Reg.Cs.(read end') || DDAudio.Reg.Cs.(read error) || !stop then
-      if !stop then raise (Failure "done") else Lwt.return_unit
+    if
+      (not DDAudio.Reg.Cs.(read active)) || DDAudio.Reg.Cs.(read error) || !stop
+    then if !stop then raise (Failure "done") else Lwt.return_unit
     else
       let* () = Lwt.pause () in
       Mem.dmb ();
+      let current_control_block = DDAudio.Reg.Conblk_ad.(read addr) in
+      if current_control_block <> !previous_control_block then (
+        Printf.printf "%08x => %08x\n%!" !previous_control_block
+          current_control_block;
+        Printf.printf "%08x vs %08x\n%!" current_control_block
+          (Nativeint.to_int control_block_addr);
+        if Int.equal current_control_block (Nativeint.to_int control_block_addr)
+        then prepare control_block_2 music_data_2
+        else prepare control_block music_data);
+      previous_control_block := current_control_block;
       loop ()
   in
   loop ()

@@ -37,10 +37,12 @@ module Encoding = struct
       code ~multiplier state (value land (1 lsl i) <> 0)
     done
 
+  let pause_words ~multiplier = 10 * (multiplier * 5000 / 125 / 32)
+
   let size ~multiplier length =
     let code_size = multiplier * 24 * length in
     (* we add one because the last frame has to be zeros. otherwise it's repeated *)
-    ((code_size + 31) / 32) + 1
+    ((code_size + 31) / 32) + pause_words ~multiplier
 
   (* encode a light pattern *)
   let v ~multiplier pattern =

@@ -174,6 +174,8 @@ struct
         let addr = base
       end)
 
+      let priority = int ~offset:16 ~size:4
+      let panic_priority = int ~offset:20 ~size:4
       let reset = bool ~offset:31
       let abort = bool ~offset:30
       let disdebug = bool ~offset:29
@@ -191,6 +193,23 @@ struct
       end)
 
       let addr = int ~size:32 ~offset:0
+    end
+
+    module Source_ad = struct
+      include Register.Make (struct
+        let addr = Mem.(base + 0x0cn)
+      end)
+
+      let addr = int ~size:32 ~offset:0
+    end
+
+    module Txfr_len = struct
+      include Register.Make (struct
+        let addr = Mem.(base + 0x14n)
+      end)
+
+      (* xlen *)
+      let len = int ~size:16 ~offset:0
     end
 
     module Debug = struct
