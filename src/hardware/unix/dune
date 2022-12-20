@@ -9,6 +9,7 @@
     (= %{context_name} "rpi4_linux"))))
  (libraries rpi.devices fmt)
  (implements rpi.hardware)
+ (modules rpi_hardware )
  (foreign_stubs
   (language c)
   (names rpi_unix)))

@@ -34,26 +34,46 @@ let serialize { tag; size; parameters } v =
   LE.set_uint32 b (20 + size) 0l;
   b
 
-module Make (M : sig
-  val request : Cstruct.t -> unit
-end) =
-struct
-  type handle = int32
+type handle = int32
 
-  let mem_alloc ~size ~align ~flags =
-    let buf =
-      serialize mem_alloc
-        (Int32.of_int size, Int32.of_int align, Int32.of_int flags)
-    in
-    M.request buf;
-    Cstruct.LE.get_uint32 buf 20
+let request cst = Rpi_hardware.mbox_request cst.Cstruct.buffer
 
-  let mem_free h = M.request (serialize mem_free h)
+let mem_alloc ~size ~align ~flags =
+  let buf =
+    serialize mem_alloc
+      (Int32.of_int size, Int32.of_int align, Int32.of_int flags)
+  in
+  request buf;
+  Cstruct.LE.get_uint32 buf 20
 
-  let mem_lock h =
-    let buf = serialize mem_lock h in
-    M.request buf;
-    Cstruct.LE.get_uint32 buf 20 |> Optint.of_unsigned_int32
+let mem_free h = request (serialize mem_free h)
 
-  let mem_unlock h = M.request (serialize mem_unlock h)
-end
+let mem_lock h =
+  let buf = serialize mem_lock h in
+  request buf;
+  Cstruct.LE.get_uint32 buf 20 |> Optint.of_unsigned_int32
+
+let mem_unlock h = request (serialize mem_unlock h)
+
+let with_buffer ~size ~align ~flags fn =
+  Printf.printf "+ %d\n%!" size;
+  let mem_ref = mem_alloc ~size ~align ~flags in
+  let bus_addr = mem_lock mem_ref in
+  let finally () =
+    Printf.printf "- %d\n%!" size;
+    mem_unlock mem_ref;
+    mem_free mem_ref
+  in
+  Fun.protect (fun () -> fn bus_addr) ~finally
+
+let with_buffer_lwt ~size ~align ~flags fn =
+  Printf.printf "+ %d\n%!" size;
+  let mem_ref = mem_alloc ~size ~align ~flags in
+  let bus_addr = mem_lock mem_ref in
+  let finally () =
+    Printf.printf "- %d\n%!" size;
+    mem_unlock mem_ref;
+    mem_free mem_ref;
+    Lwt.return_unit
+  in
+  Lwt.finalize (fun () -> fn bus_addr) finally

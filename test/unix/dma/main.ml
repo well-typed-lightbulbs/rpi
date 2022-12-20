@@ -1,31 +1,7 @@
 open Rpi
 
-type file_descr
-
-external vcio_open : unit -> file_descr = "caml_vcio_open"
-external vcio_write : file_descr -> Cstruct.t -> unit = "caml_vcio_write"
-
-external mmap2 :
-  ('a, 'b) Stdlib.Bigarray.kind ->
-  'c Stdlib.Bigarray.layout ->
-  nativeint ->
-  nativeint ->
-  ('a, 'b, 'c) Stdlib.Bigarray.Genarray.t = "caml_ba_mmap"
-
-let fd = vcio_open ()
-
-module X = Mailbox.Make (struct
-  let request = vcio_write fd
-end)
-
 let mmap_cstruct addr size =
-  let buf =
-    mmap2 Bigarray.char Bigarray.c_layout
-      (addr |> Optint.to_int |> Nativeint.of_int)
-      (size |> Nativeint.of_int)
-    |> Bigarray.array1_of_genarray
-  in
-  Cstruct.of_bigarray buf
+  Cstruct.of_bigarray (Rpi_hardware.map_bigarray addr size)
 
 module PwmAudio = Pwm.Make (struct
   open Pwm
@@ -45,17 +21,7 @@ module DDAudio = Rpi.DMA.Make (struct
   let num = 4
 end)
 
-let with_buffer size fn =
-  Printf.printf "+ %d\n%!" size;
-  let mem_ref = X.mem_alloc ~size ~align:256 ~flags:0xc in
-  let bus_addr = X.mem_lock mem_ref in
-  let finally () =
-    Printf.printf "- %d\n%!" size;
-    X.mem_unlock mem_ref;
-    X.mem_free mem_ref;
-    Lwt.return_unit
-  in
-  Lwt.finalize (fun () -> fn bus_addr) finally
+let with_buffer size = Mailbox.with_buffer_lwt ~size ~align:256 ~flags:0xc
 
 let led_pattern =
   let cut = 16 in

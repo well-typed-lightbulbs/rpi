@@ -8,6 +8,8 @@
 #include "caml/mlvalues.h"
 #include "caml/alloc.h"
 #include "caml/bigarray.h"
+#include "caml/memory.h"
+#include "caml/fail.h"
 
 value caml_unix_mapped_alloc(int flags, int num_dims, void * data, intnat * dim);
 
@@ -71,4 +73,37 @@ CAMLprim value caml_ba_mmap(value vkind, value vlayout, value caml_base, value c
 
 
     return caml_unix_mapped_alloc(flags, 1, ((uint64_t)mem) + (base & offsetmask), &size);
+}
+
+#include <sys/ioctl.h>
+#include <sys/sysmacros.h>
+#include <sys/stat.h>
+
+
+CAMLprim value caml_vcio_open() {
+    int file_desc = open("/dev/vcio", 0);
+    if (file_desc >= 0) {
+        return Val_int(file_desc);
+    }
+
+    caml_failwith("caml_vcio_open");
+}
+
+#define MAJOR_NUM 100
+#define IOCTL_MBOX_PROPERTY _IOWR(MAJOR_NUM, 0, char *)
+
+CAMLprim value caml_vcio_write(value fd, value buf) {
+  CAMLparam2 (fd, buf);
+
+  int fd_ = Int_val(fd);
+
+  char* ptr = Caml_ba_data_val(buf);
+
+  int ret_val = ioctl(fd_, IOCTL_MBOX_PROPERTY, ptr);
+
+  if (ret_val < 0) {
+      perror("ioctl_set_msg failed\n");
+  }
+
+  CAMLreturn (Val_unit);
 }
