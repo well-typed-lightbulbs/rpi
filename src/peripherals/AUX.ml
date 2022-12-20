@@ -1,8 +1,10 @@
 let base = Rpi_hardware.aux
 
 module Reg = struct
+  open Register
+
   module Irq = struct
-    include Register.Make (struct
+    include Make (struct
       let addr = base
     end)
 
@@ -12,7 +14,7 @@ module Reg = struct
   end
 
   module Mu_Io = struct
-    include Register.Make (struct
+    include Make (struct
       let addr = Mem.(offset base 0x40)
     end)
 
@@ -20,7 +22,7 @@ module Reg = struct
   end
 
   module Mu_Ier = struct
-    include Register.Make (struct
+    include Make (struct
       let addr = Mem.(offset base 0x44)
     end)
 
@@ -29,7 +31,7 @@ module Reg = struct
   end
 
   module Mu_Iir = struct
-    include Register.Make (struct
+    include Make (struct
       let addr = Mem.(offset base 0x48)
     end)
 
@@ -39,7 +41,7 @@ module Reg = struct
   end
 
   module Mu_Lsr = struct
-    include Register.Make (struct
+    include Make (struct
       let addr = Mem.(offset base 0x54)
     end)
 
@@ -48,7 +50,7 @@ module Reg = struct
   end
 
   module Mu_Stat = struct
-    include Register.Make (struct
+    include Make (struct
       let addr = Mem.(offset base 0x64)
     end)
 
@@ -66,8 +68,8 @@ let state = Ke.Rke.create ~capacity:1024 Bigarray.Char
 
 let handler _ =
   Mem.dmb ();
-  while Reg.Mu_Iir.(read rx_fifo_not_empty) do
-    let c = Reg.Mu_Io.(read data) in
+  while Reg.Mu_Iir.(read () && rx_fifo_not_empty) do
+    let c = Reg.Mu_Io.(read () && data) in
     Ke.Rke.push state (Char.unsafe_chr c)
   done;
   Mem.dmb ();

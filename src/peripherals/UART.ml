@@ -7,8 +7,10 @@ module UART0 = struct
   let base = Rpi_hardware.uart0
 
   module Reg = struct
+    open Register
+
     module Dr = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = base
       end)
 
@@ -16,7 +18,7 @@ module UART0 = struct
     end
 
     module Fr = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.offset base 0x18
       end)
 
@@ -25,7 +27,7 @@ module UART0 = struct
     end
 
     module Imsc = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.offset base 0x38
       end)
 
@@ -40,7 +42,7 @@ module UART0 = struct
     end
 
     module Icr = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.offset base 0x44
       end)
 
@@ -55,7 +57,7 @@ module UART0 = struct
     end
 
     module Ibrd = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.offset base 0x24
       end)
 
@@ -63,7 +65,7 @@ module UART0 = struct
     end
 
     module Fbrd = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.offset base 0x28
       end)
 
@@ -71,7 +73,7 @@ module UART0 = struct
     end
 
     module Ifls = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.offset base 0x34
       end)
 
@@ -100,7 +102,7 @@ module UART0 = struct
     end
 
     module Lcrh = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.offset base 0x2c
       end)
 
@@ -130,7 +132,7 @@ module UART0 = struct
     end
 
     module Cr = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.offset base 0x30
       end)
 
@@ -144,33 +146,33 @@ module UART0 = struct
     end
 
     module Ris = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.offset base 0x3c
       end)
     end
 
     module Mis = struct
-      include Register.Make (struct
+      include Make (struct
         let addr = Mem.offset base 0x40
       end)
     end
   end
 
-  let read_byte_ready () = not Reg.Fr.(read receive_fifo_empty)
+  let read_byte_ready () = not Reg.Fr.(read () && receive_fifo_empty)
 
   let read_byte_sync () =
-    while Reg.Fr.(read receive_fifo_empty) do
+    while Reg.Fr.(read () && receive_fifo_empty) do
       ()
     done;
-    Reg.Dr.(read data)
+    Reg.Dr.(read () && data)
 
   let flushrx () =
-    while not Reg.Fr.(read receive_fifo_empty) do
+    while not Reg.Fr.(read () && receive_fifo_empty) do
       read_byte_sync () |> ignore
     done
 
   let write_byte byte =
-    while Reg.Fr.(read transmit_fifo_full) do
+    while Reg.Fr.(read () && transmit_fifo_full) do
       ()
     done;
     Reg.Dr.(empty |> set data byte |> write)
@@ -186,21 +188,22 @@ module UART0 = struct
 
   let read () =
     (* wait for a byte to arrive *)
-    while Reg.Fr.(read receive_fifo_empty) do
+    while Reg.Fr.(read () && receive_fifo_empty) do
       Mtime.sleep_us_sync 10L
     done;
     (* read the byte *)
-    Reg.Dr.(read data)
+    Reg.Dr.(read () && data)
 
   let handler _ =
     Printf.printf "INTERRUPT %x %x %x\n%!" (Mem.get_int pactl_cs)
-      (Mem.get_int Reg.Ris.addr) (Mem.get_int Reg.Mis.addr);
+      (Reg.Ris.(read () && Register.raw) |> Optint.to_int)
+      (Reg.Mis.(read () && Register.raw) |> Optint.to_int);
     Mem.dmb ();
-    while not Reg.Fr.(read receive_fifo_empty) do
-      let c = Reg.Dr.(read data) in
+    while not Reg.Fr.(read () && receive_fifo_empty) do
+      let c = Reg.Dr.(read () && data) in
       Ke.Rke.push state c
     done;
-    Mem.set_int Reg.Icr.addr 0x7ff;
+    Reg.Icr.(empty |> set Register.raw (Optint.of_int 0x7ff) |> write);
     Mem.dmb ();
     irq_enable ()
 
@@ -224,9 +227,9 @@ module UART0 = struct
     flushrx ();
 
     (* mask interrupts *)
-    Mem.set_int Reg.Imsc.addr 0x7ff;
+    Reg.Imsc.(empty |> set Register.raw (Optint.of_int 0x7ff) |> write);
     (* clear all interrupts *)
-    Mem.set_int Reg.Icr.addr 0x7ff;
+    Reg.Icr.(empty |> set Register.raw (Optint.of_int 0x7ff) |> write);
     Reg.Ibrd.(empty |> set integer_baud_rate_divisor 26 |> write);
     Reg.Fbrd.(empty |> set fractional_baud_rate_divisor 3 |> write);
     Reg.Ifls.(empty |> set receive_interrupt_fifo_level_select F1_8 |> write);
@@ -241,8 +244,8 @@ module UART0 = struct
       |> set transmit_interrupt_mask true
       |> set receive_interrupt_mask true
       |> write);*)
-    Mem.set_int Reg.Imsc.addr 0x7ff;
-    Mem.set_int Reg.Icr.addr 0x7ff;
+    Reg.Imsc.(empty |> set Register.raw (Optint.of_int 0x7ff) |> write);
+    Reg.Icr.(empty |> set Register.raw (Optint.of_int 0x7ff) |> write);
     Mtime.sleep_us_sync 10_000L;
     Sys.set_signal uart_irq_line (Sys.Signal_handle handler)
 end

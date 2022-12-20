@@ -3,10 +3,8 @@ external mmap : nativeint -> nativeint -> nativeint = "caml_mmap"
 open Rpi_devices
 
 let mmap a b =
-  let n = mmap (Optint.to_int a |> Nativeint.of_int) (Nativeint.of_int b) in
-  let n = n |> Nativeint.to_int in
-  Printf.printf ">>%016x\n%!" n;
-  n |> Optint.of_int
+  mmap (Optint.to_int a |> Nativeint.of_int) (Nativeint.of_int b)
+  |> Nativeint.to_int |> Optint.of_int
 
 let crystal_frequency = crystal_frequency
 let uart0 = mmap uart0 uart0_registers_size

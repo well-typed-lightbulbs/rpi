@@ -1,5 +1,6 @@
 module Transfer_information = struct
-  include Register.Raw
+  open Register
+  include Raw
 
   let interrupt_enable = bool ~offset:0
   let two_d_mode = bool ~offset:1
@@ -125,7 +126,8 @@ module Control_block = struct
 
   let write buf (v : t) =
     set_raw_transfer_information buf
-      (Int32.of_int (Transfer_information.reg v.transfer_information));
+      (Optint.to_int32
+         (Transfer_information.get v.transfer_information Register.raw));
     set_raw_source_address buf (Optint.to_int32 v.source_address);
     set_raw_destination_address buf (Optint.to_int32 v.destination_address);
     set_raw_transfer_length buf (Int32.of_int v.transfer_length);
@@ -134,7 +136,8 @@ module Control_block = struct
 
   let write_4 buf (v : v4) =
     set_raw_4_transfer_information buf
-      (Int32.of_int (Transfer_information.reg v.transfer_information));
+      (Optint.to_int32
+         (Transfer_information.get v.transfer_information Register.raw));
     set_raw_4_source_address buf (Optint.to_int32 v.source_address);
     set_raw_4_source_information buf (Int32.of_int v.source_information);
     set_raw_4_destination_address buf (Optint.to_int32 v.destination_address);
@@ -145,7 +148,8 @@ module Control_block = struct
 
   let write_lite buf (v : lite) =
     set_raw_lite_transfer_information buf
-      (Int32.of_int (Transfer_information.reg v.transfer_information));
+      (Optint.to_int32
+         (Transfer_information.get v.transfer_information Register.raw));
     set_raw_lite_source_address buf (Optint.to_int32 v.source_address);
     set_raw_lite_destination_address buf (Optint.to_int32 v.destination_address);
     set_raw_lite_transfer_length buf (Int32.of_int v.transfer_length);
@@ -168,6 +172,8 @@ struct
   let base = Rpi_hardware.dma M.num
 
   module Reg = struct
+    open Register
+
     module Cs = struct
       (* Control and Status*)
       include Register.Make (struct
@@ -216,6 +222,8 @@ struct
       include Register.Make (struct
         let addr = Mem.offset base 0x20
       end)
+
+      let addr = Mem.offset base 0x20
     end
   end
 end
