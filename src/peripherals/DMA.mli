@@ -24,11 +24,11 @@ end
 module Control_block : sig
   type t = {
     transfer_information : Transfer_information.value;
-    source_address : nativeint;
-    destination_address : nativeint;
+    source_address : Optint.t;
+    destination_address : Optint.t;
     transfer_length : int;
     stride : int;
-    next_control_address : int;
+    next_control_address : Optint.t;
   }
 
   val sizeof : int
@@ -38,10 +38,10 @@ module Control_block : sig
 
   type lite = {
     transfer_information : Transfer_information.value;
-    source_address : nativeint;
-    destination_address : nativeint;
+    source_address : Optint.t;
+    destination_address : Optint.t;
     transfer_length : int;
-    next_control_address : int;
+    next_control_address : Optint.t;
   }
 
   val sizeof_lite : int
@@ -49,12 +49,12 @@ module Control_block : sig
 
   type v4 = {
     transfer_information : Transfer_information.value;
-    source_address : nativeint;
+    source_address : Optint.t;
     source_information : int;
-    destination_address : nativeint;
+    destination_address : Optint.t;
     destination_information : int;
     transfer_length : int;
-    next_control_address : int;
+    next_control_address : Optint.t;
   }
 
   val sizeof_4 : int
@@ -70,7 +70,7 @@ module Make : functor
      val num : int
    end)
   -> sig
-  val base : nativeint
+  val base : Optint.t
 
   module Reg : sig
     module Cs : sig
@@ -91,7 +91,7 @@ module Make : functor
       val reg : value -> int
       val read : 'a field -> 'a
       val write : value -> unit
-      val addr : nativeint
+      val addr : Optint.t
       val reset : bool field
       val abort : bool field
       val disdebug : bool field
@@ -189,7 +189,7 @@ module Make : functor
       val reg : value -> int
       val read : 'a field -> 'a
       val write : value -> unit
-      val addr : nativeint
+      val addr : Optint.t
     end
   end
 end

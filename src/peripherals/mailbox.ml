@@ -53,7 +53,7 @@ struct
   let mem_lock h =
     let buf = serialize mem_lock h in
     M.request buf;
-    Cstruct.LE.get_uint32 buf 20 |> Nativeint.of_int32
+    Cstruct.LE.get_uint32 buf 20 |> Optint.of_unsigned_int32
 
   let mem_unlock h = M.request (serialize mem_unlock h)
 end

@@ -2,6 +2,7 @@
  (name embedded)
  (wrapped false)
  (public_name rpi.embedded)
+ (libraries optint fmt)
  (enabled_if
   (= %{architecture} arm64))
  (foreign_stubs

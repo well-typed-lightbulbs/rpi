@@ -94,57 +94,64 @@ value ocamlrpi_barrier_wait (value d)
   return Val_unit;
 }
 
+#ifdef __aarch64__
+  #define Optint_val(addr) (Long_val(addr))
+#else
+  #error "32bit?"
+#endif
+
+
 /* Reads */
 
 value ocamlrpi_mem_get_byte (value addr)
 {
-  return Val_int (mem_get_u8 (Nativeint_val (addr)));
+  return Val_int (mem_get_u8 (Optint_val (addr)));
 }
 
 value ocamlrpi_mem_get_int (value addr)
 {
-  return Val_int (mem_get_u32 (Nativeint_val (addr)));
+  return Val_int (mem_get_u32 (Optint_val (addr)));
 }
 
 value ocamlrpi_mem_get_int32 (value addr)
 {
-  return caml_copy_int32 (mem_get_u32 (Nativeint_val (addr)));
+  return caml_copy_int32 (mem_get_u32 (Optint_val (addr)));
 }
 
 value ocamlrpi_mem_get_int64 (value addr)
 {
-  return caml_copy_int64 (mem_get_u64 (Nativeint_val (addr)));
+  return caml_copy_int64 (mem_get_u64 (Optint_val (addr)));
 }
 
 /* Writes */
 
 value ocamlrpi_mem_set_byte (value addr, value v)
 {
-  mem_set_u8 (Nativeint_val (addr), Int_val (v));
+  mem_set_u8 (Optint_val (addr), Int_val (v));
   return Val_unit;
 }
 
 value ocamlrpi_mem_set_int (value addr, value v)
 {
-  mem_set_u32 (Nativeint_val (addr), Int_val (v));
+  mem_set_u32 (Optint_val (addr), Int_val (v));
   return Val_unit;
 }
 
 value ocamlrpi_mem_set_int32 (value addr, value v)
 {
-  mem_set_u32 (Nativeint_val (addr), Int32_val (v));
+  mem_set_u32 (Optint_val (addr), Int32_val (v));
   return Val_unit;
 }
 
 value ocamlrpi_mem_set_int64 (value addr, value v)
 {
-  mem_set_u64 (Nativeint_val (addr), Int64_val (v));
+  mem_set_u64 (Optint_val (addr), Int64_val (v));
   return Val_unit;
 }
 
 value ocamlrpi_mem_set_int32_pow (value addr, value pow)
 {
-  mem_set_u32 (Nativeint_val (addr), 1 << Int_val (pow));
+  mem_set_u32 (Optint_val (addr), 1 << Int_val (pow));
   return Val_unit;
 }
 
@@ -152,57 +159,26 @@ value ocamlrpi_mem_set_int32_pow (value addr, value pow)
 
 value ocamlrpi_mem_set_byte_bits (value addr, value bits, value v)
 {
-  mem_set_u8_bits (Nativeint_val (addr), Int_val (bits), Int_val (v));
+  mem_set_u8_bits (Optint_val (addr), Int_val (bits), Int_val (v));
   return Val_unit;
 }
 
 value ocamlrpi_mem_set_int_bits (value addr, value bits, value v)
 {
-  mem_set_u32_bits (Nativeint_val (addr), Int_val (bits), Int_val (v));
+  mem_set_u32_bits (Optint_val (addr), Int_val (bits), Int_val (v));
   return Val_unit;
 }
 
 value ocamlrpi_mem_set_int32_bits (value addr, value bits, value v)
 {
-  mem_set_u32_bits (Nativeint_val (addr), Int32_val (bits), Int32_val (v));
+  mem_set_u32_bits (Optint_val (addr), Int32_val (bits), Int32_val (v));
   return Val_unit;
 }
 
 value ocamlrpi_mem_set_int64_bits (value addr, value bits, value v)
 {
-  mem_set_u32_bits (Nativeint_val (addr), Int64_val (bits), Int64_val (v));
+  mem_set_u32_bits (Optint_val (addr), Int64_val (bits), Int64_val (v));
   return Val_unit;
-}
-
-/* Mapping */
-
-value ocamlrpi_mem_map_byte_length (value ba)
-{
-  return Val_int (caml_ba_byte_size (Caml_ba_array_val (ba)));
-}
-
-
-value ocamlrpi_mem_map_base (value ba)
-{
-  return caml_copy_nativeint ((uint64_t)(Caml_ba_data_val (ba)));
-}
-
-value ocamlrpi_mem_map_bytes (value addr, value len)
-{
-  return caml_ba_alloc_dims (CAML_BA_UINT8 | CAML_BA_C_LAYOUT, 1,
-                             (void *)(Nativeint_val (addr)), Int_val (len));
-}
-
-value ocamlrpi_mem_map_int32 (value addr, value len)
-{
-  return caml_ba_alloc_dims (CAML_BA_INT32 | CAML_BA_C_LAYOUT, 1,
-                             (void *)(Nativeint_val (addr)), Int_val (len));
-}
-
-value ocamlrpi_mem_map_int64 (value addr, value len)
-{
-  return caml_ba_alloc_dims (CAML_BA_INT64 | CAML_BA_C_LAYOUT, 1,
-                             (void *)(Nativeint_val (addr)), Int_val (len));
 }
 
 /*---------------------------------------------------------------------------

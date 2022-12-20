@@ -61,7 +61,7 @@ struct
 
     module Sta = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x04n)
+        let addr = Mem.(offset base 0x04)
       end)
 
       let empt1 = bool ~offset:1
@@ -72,7 +72,7 @@ struct
 
     module Dmac = struct
       include Register.Make (struct
-        let addr = Mem.(base + 0x08n)
+        let addr = Mem.(offset base 0x08)
       end)
 
       let enab = bool ~offset:31
@@ -80,9 +80,9 @@ struct
       let panic = int ~offset:8 ~size:8
     end
 
-    let rng1 = Mem.(base + 0x10n)
-    let rng2 = Mem.(base + 0x20n)
-    let fif1 = Mem.(base + 0x18n)
+    let rng1 = Mem.(offset base 0x10)
+    let rng2 = Mem.(offset base 0x20)
+    let fif1 = Mem.(offset base 0x18)
   end
 
   open Lwt.Syntax

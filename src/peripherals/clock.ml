@@ -6,7 +6,7 @@ let crystal_frequency = Rpi_hardware.crystal_frequency
 module Reg = struct
   module Cm_pwmdiv = struct
     include Register.Make (struct
-      let addr = Mem.(base + 0xa4n)
+      let addr = Mem.(offset base 0xa4)
     end)
 
     let password =
@@ -22,7 +22,7 @@ module Reg = struct
 
   module Cm_pwmctl = struct
     include Register.Make (struct
-      let addr = Mem.(base + 0xa0n)
+      let addr = Mem.(offset base 0xa0)
     end)
 
     let password =
@@ -34,9 +34,7 @@ module Reg = struct
       }
 
     let busy = bool ~offset:7
-
     let enable = bool ~offset:4
-
     let kill = bool ~offset:5
 
     type source = GND | OSC | DBG0 | DBG1 | PLLA | PLLC | PLLD | HDMI_AUX
@@ -67,9 +65,8 @@ module Reg = struct
   end
 end
 
-let cm_pwmdiv = Mem.(base + 0xa4n)
-
-let cm_pwmctl = Mem.(base + 0xa0n)
+let cm_pwmdiv = Mem.(offset base 0xa4)
+let cm_pwmctl = Mem.(offset base 0xa0)
 (*
   let password = 0x5a lsl 24*)
 
@@ -86,7 +83,6 @@ let wait_until_busy () =
   done
 
 let clock_freq = ref None
-
 let freq () = !clock_freq
 
 let set_pwm_clock freq =

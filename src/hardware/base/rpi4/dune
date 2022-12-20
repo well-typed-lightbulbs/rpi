@@ -1,4 +1,5 @@
 (library
  (name rpi_base_rpi4)
  (public_name rpi.base-rpi4)
+ (libraries optint)
  (implements rpi.base))

@@ -4,7 +4,6 @@ type file_descr
 
 external vcio_open : unit -> file_descr = "caml_vcio_open"
 external vcio_write : file_descr -> Cstruct.t -> unit = "caml_vcio_write"
-external mmap : nativeint -> nativeint -> nativeint = "caml_mmap"
 
 external mmap2 :
   ('a, 'b) Stdlib.Bigarray.kind ->
@@ -21,7 +20,9 @@ end)
 
 let mmap_cstruct addr size =
   let buf =
-    mmap2 Bigarray.char Bigarray.c_layout addr size
+    mmap2 Bigarray.char Bigarray.c_layout
+      (addr |> Optint.to_int |> Nativeint.of_int)
+      (size |> Nativeint.of_int)
     |> Bigarray.array1_of_genarray
   in
   Cstruct.of_bigarray buf
@@ -84,12 +85,10 @@ let led_strip_main () =
   let control_block =
     mmap_cstruct
       (Rpi_devices.mem_bus_to_phys control_block_addr)
-      (Nativeint.of_int Rpi.DMA.Control_block.sizeof)
+      Rpi.DMA.Control_block.sizeof
   in
   let led_data =
-    mmap_cstruct
-      (Rpi_devices.mem_bus_to_phys led_data_addr)
-      (Nativeint.of_int size)
+    mmap_cstruct (Rpi_devices.mem_bus_to_phys led_data_addr) size
   in
 
   Printf.printf "PWM\n%!";
@@ -108,10 +107,10 @@ let led_strip_main () =
       transfer_information = ti;
       source_address = led_data_addr;
       (* FIF1 *)
-      destination_address = Mem.(Rpi_devices.(peri_phys_to_bus pwm0) + 0x18n);
+      destination_address = Mem.offset Rpi_devices.(peri_phys_to_bus pwm0) 0x18;
       transfer_length = size;
       stride = 0;
-      next_control_address = 0;
+      next_control_address = Optint.zero;
     };
 
   let led_pattern = ref led_pattern in
@@ -131,7 +130,7 @@ let led_strip_main () =
 
     Mem.dmb ();
     DD.Reg.Conblk_ad.(
-      empty |> set addr (control_block_addr |> Nativeint.to_int) |> write);
+      empty |> set addr (control_block_addr |> Optint.to_int) |> write);
     DD.Reg.Cs.(
       empty |> set active true |> set priority 8 |> set panic_priority 15
       |> set wait_for_outstanding_writes true
@@ -175,33 +174,29 @@ let play_music () =
   Printf.printf "Music %d\n%!" size;
 
   with_buffer Rpi.DMA.Control_block.sizeof @@ fun control_block_addr ->
-  let control_block_addr = Nativeint.logand control_block_addr 0xffffffffn in
+  (* let control_block_addr = Nativeint.logand control_block_addr 0xffffffffn in *)
   with_buffer Rpi.DMA.Control_block.sizeof @@ fun control_block_addr_2 ->
-  let control_block_addr_2 =
-    Nativeint.logand control_block_addr_2 0xffffffffn
-  in
+  (* let control_block_addr_2 =
+       Nativeint.logand control_block_addr_2 0xffffffffn
+     in *)
   with_buffer buffer_size @@ fun music_data_addr ->
   with_buffer buffer_size @@ fun music_data_addr_2 ->
   Printf.printf "Setting up..\n%!";
   let control_block =
     mmap_cstruct
       (Rpi_devices.mem_bus_to_phys control_block_addr)
-      (Nativeint.of_int Rpi.DMA.Control_block.sizeof)
+      Rpi.DMA.Control_block.sizeof
   in
   let control_block_2 =
     mmap_cstruct
       (Rpi_devices.mem_bus_to_phys control_block_addr_2)
-      (Nativeint.of_int Rpi.DMA.Control_block.sizeof)
+      Rpi.DMA.Control_block.sizeof
   in
   let music_data =
-    mmap_cstruct
-      (Rpi_devices.mem_bus_to_phys music_data_addr)
-      (Nativeint.of_int size)
+    mmap_cstruct (Rpi_devices.mem_bus_to_phys music_data_addr) size
   in
   let music_data_2 =
-    mmap_cstruct
-      (Rpi_devices.mem_bus_to_phys music_data_addr_2)
-      (Nativeint.of_int size)
+    mmap_cstruct (Rpi_devices.mem_bus_to_phys music_data_addr_2) size
   in
   Printf.printf "CB..\n%!";
   (* setup control block *)
@@ -219,20 +214,20 @@ let play_music () =
       transfer_information = ti;
       source_address = music_data_addr;
       (* FIF1 *)
-      destination_address = Mem.(Rpi_devices.(peri_phys_to_bus pwm1) + 0x18n);
+      destination_address = Mem.offset Rpi_devices.(peri_phys_to_bus pwm1) 0x18;
       transfer_length = buffer_size;
       stride = 0;
-      next_control_address = control_block_addr_2 |> Nativeint.to_int;
+      next_control_address = control_block_addr_2;
     };
   Rpi.DMA.Control_block.write control_block_2
     {
       transfer_information = ti;
       source_address = music_data_addr_2;
       (* FIF1 *)
-      destination_address = Mem.(Rpi_devices.(peri_phys_to_bus pwm1) + 0x18n);
+      destination_address = Mem.offset Rpi_devices.(peri_phys_to_bus pwm1) 0x18;
       transfer_length = buffer_size;
       stride = 0;
-      next_control_address = control_block_addr |> Nativeint.to_int;
+      next_control_address = control_block_addr;
     };
   Printf.printf "PWM..\n%!";
   (* PWM init *)
@@ -274,11 +269,11 @@ let play_music () =
 
   (* send the piece *)
   DDAudio.Reg.Conblk_ad.(
-    empty |> set addr (control_block_addr |> Nativeint.to_int) |> write);
+    empty |> set addr (Optint.to_int control_block_addr) |> write);
   DDAudio.Reg.Cs.(
     empty |> set active true |> set wait_for_outstanding_writes true |> write);
 
-  let previous_control_block = ref (Nativeint.to_int control_block_addr) in
+  let previous_control_block = ref (Optint.to_int control_block_addr) in
   (* wait for finish *)
   let rec loop () =
     if
@@ -292,8 +287,8 @@ let play_music () =
         Printf.printf "%08x => %08x\n%!" !previous_control_block
           current_control_block;
         Printf.printf "%08x vs %08x\n%!" current_control_block
-          (Nativeint.to_int control_block_addr);
-        if Int.equal current_control_block (Nativeint.to_int control_block_addr)
+          (Optint.to_int control_block_addr);
+        if Int.equal current_control_block (Optint.to_int control_block_addr)
         then prepare control_block_2 music_data_2
         else prepare control_block music_data);
       previous_control_block := current_control_block;
