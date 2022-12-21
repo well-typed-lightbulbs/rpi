@@ -65,7 +65,7 @@ module Opcode = struct
   end
 
   module Host_control = struct
-    let ogf = 1
+    let ogf = 3
 
     [%%cenum
     type t =
@@ -302,7 +302,7 @@ module LE = struct
 end
 
 module Host_control = struct
-  let ogf = 1
+  let ogf = 3
 
   module Reset = struct
     let v = v ogf 3 (fun _ -> 0) (fun () _ -> ())

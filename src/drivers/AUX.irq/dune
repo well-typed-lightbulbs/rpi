@@ -1,0 +1,6 @@
+(library
+ (name aux)
+ (public_name rpi.aux)
+ (enabled_if
+  (= %{architecture} arm64))
+ (libraries embedded rpi lwt ke))

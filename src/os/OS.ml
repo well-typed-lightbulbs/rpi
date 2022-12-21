@@ -36,19 +36,19 @@ let rec run t =
         | None -> Int64.add (Rpi.Mtime.elapsed_us ()) (Duration.of_day 1)
         | Some tm -> tm
       in
-      Rpi.Mtime.schedule_next_interrupt L1 timeout;
+      Mtime.schedule_next_interrupt L1 timeout;
       wfi ();
       Bytes.create 1 |> ignore;
       run t
 
 let timer_interrupt_handler _ =
-  Rpi.Mtime.acknowledge_interrupt L1;
+  Mtime.acknowledge_interrupt L1;
   Mem.dmb ();
   irq_enable ()
 
-let go t = 
-  Sys.set_signal 
-    (Rpi.Mtime.(interrupt_line_to_signal_number L1)) 
+let go t =
+  Sys.set_signal
+    (Mtime.(interrupt_line_to_signal_number L1))
     (Sys.Signal_handle timer_interrupt_handler);
   run t
 

@@ -6,3 +6,4 @@ dune-workspace
 *.opam.locked
 node_modules
 *.log
+main

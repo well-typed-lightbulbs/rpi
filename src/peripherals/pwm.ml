@@ -49,16 +49,15 @@ struct
         let addr = base
       end)
 
-      let msen1 = bool ~offset:7
-      let clrf = bool ~offset:6
-      let usef1 = bool ~offset:5
-      let usef2 = bool ~offset:13
-      let mode1 = bool ~offset:1
       let pwen1 = bool ~offset:0
-      let pwen2 = bool ~offset:8
+      let mode1 = bool ~offset:1
+      let _rptl1 = bool ~offset:2
+      let _sbit1 = bool ~offset:3
+      let usef1 = bool ~offset:5
       let clrf = bool ~offset:6
-      let rptl1 = bool ~offset:2
-      let sbit1 = bool ~offset:3
+      let _msen1 = bool ~offset:7
+      let pwen2 = bool ~offset:8
+      let usef2 = bool ~offset:13
     end
 
     module Sta = struct
@@ -68,7 +67,7 @@ struct
 
       let empt1 = bool ~offset:1
       let full1 = bool ~offset:0
-      let gapo0 = bool ~offset:5
+      let _gapo0 = bool ~offset:5
       let berr = bool ~offset:8
     end
 
@@ -87,16 +86,10 @@ struct
     let fif1 = Mem.(offset base 0x18)
   end
 
-  open Lwt.Syntax
-
   let write int_val =
-    let rec loop () =
-      if Reg.Sta.(read () && full1) then
-        let* () = Lwt.pause () in
-        loop ()
-      else Lwt.return_unit
-    in
-    let+ () = loop () in
+    while Reg.Sta.(read () && full1) do
+      ()
+    done;
     Mem.set_int Reg.fif1 int_val
 
   let write_sync int_val =
@@ -106,21 +99,16 @@ struct
     Mem.set_int Reg.fif1 int_val
 
   let flush () =
-    let rec loop () =
-      if not Reg.Sta.(read () && empt1) then
-        let* () = Lwt.pause () in
-        loop ()
-      else Lwt.return_unit
-    in
-    loop ()
+    while not Reg.Sta.(read () && empt1) do
+      ()
+    done
 
-  let stop () =
-    Reg.Ctl.(read () |> set clrf true |> write);
-    Lwt.return_unit
+  let stop () = Reg.Ctl.(read () |> set clrf true |> write)
 
   let kill () =
-    Reg.Ctl.(empty |> set clrf true |> write);
-    Lwt.return_unit
+    stop ();
+    flush ();
+    Reg.Ctl.(empty |> write)
 
   let status () =
     if Reg.Sta.(read () && berr) then Reg.Sta.(empty |> set berr true |> write)
@@ -144,28 +132,28 @@ struct
       match Clock.freq () with
       | Some v -> Error v
       | None ->
-          Mtime.sleep_us_sync 10L;
+          Mtime.sleep_us 10L;
           Clock.kill ();
-          Mtime.sleep_us_sync 10L;
+          Mtime.sleep_us 10L;
           Clock.set_pwm_clock Setting.freq
     in
     Mem.dmb ();
 
     (* CLOCK -> PWM *)
-    let* () = stop () in
-    let+ () = Mtime.sleep_us 2000L in
+    stop ();
+    Mtime.sleep_us 2000L;
     Mem.set_int Reg.rng1 Setting.range;
     if Setting.is_stereo then Mem.set_int Reg.rng2 Setting.range;
 
-    Mtime.sleep_us_sync 10L;
+    Mtime.sleep_us 10L;
 
     Reg.Ctl.(empty |> set clrf true |> write);
 
-    Mtime.sleep_us_sync 10L;
+    Mtime.sleep_us 10L;
 
     Reg.Dmac.(empty |> set enab true |> set panic 7 |> set dreq 3 |> write);
 
-    Mtime.sleep_us_sync 10L;
+    Mtime.sleep_us 10L;
 
     let open Reg.Ctl in
     let ch2 =

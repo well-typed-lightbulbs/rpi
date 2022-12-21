@@ -18,9 +18,7 @@ val elapsed_us : unit -> span_us
 (** [elapsed ()] is the number of microseconds elasped since boot
         time. *)
 
-val sleep_us : span_us -> unit Lwt.t
-
-val sleep_us_sync : span_us -> unit
+val sleep_us : span_us -> unit
 (** [sleep_us d] blocks and sleeps for [d] microseconds. *)
 
 (** {1:counters Counters} *)
@@ -42,12 +40,12 @@ val s_to_us : int64
 val ms_to_us : int64
 (** [ms_to_us] is the number of microseconds in one millisecond. *)
 
-(** Interruptions *)
-
-type interrupt_line = L0 | L1 | L2 | L3
-
-val interrupt_line_to_signal_number : interrupt_line -> int
-
-val schedule_next_interrupt : interrupt_line -> span_us -> unit
-
-val acknowledge_interrupt : interrupt_line -> unit
+module Reg : sig
+  val timer_cs : Mem.addr
+  val timer_clo : Mem.addr
+  val timer_chi : Mem.addr
+  val timer_compare_0 : Mem.addr
+  val timer_compare_1 : Mem.addr
+  val timer_compare_2 : Mem.addr
+  val timer_compare_3 : Mem.addr
+end

@@ -6,16 +6,4 @@
    (or
     (= %{context_name} "default")
     (= %{context_name} "rpi4_linux"))))
- (libraries rpi unix rpi.bluetooth rpi.hardware-unix rpi.base-rpi4))
-
-(rule
- (deps main.exe)
- (enabled_if
-  (and
-   (= %{architecture} arm64)
-   (or
-    (= %{context_name} "default")
-    (= %{context_name} "rpi4_linux"))))
- (target main)
- (mode promote)
- (action (copy %{deps} %{target})))
+ (libraries rpi unix rpi.bluetooth rpi.hardware-unix rpi.base-rpi4 lwt.unix rpi.uart.poll))

@@ -1,0 +1,6 @@
+(library
+ (name uart)
+ (public_name rpi.uart)
+ (enabled_if
+  (= %{architecture} arm64))
+ (libraries embedded rpi lwt ke))
