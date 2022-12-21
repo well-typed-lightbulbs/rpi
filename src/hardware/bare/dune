@@ -2,4 +2,5 @@
  (name rpi_hardware_bare)
  (public_name rpi.hardware-bare)
  (libraries rpi.devices)
- (implements rpi.hardware))
+ (implements rpi.hardware)
+ (foreign_stubs (language c) (names rpi_bare)))
