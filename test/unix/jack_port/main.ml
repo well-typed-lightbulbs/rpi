@@ -13,6 +13,8 @@ let () =
      we can load it into memory with [ocaml-crunch]:
      ocaml-crunch music/ -e bin -o music.ml -m plain
   *)
-  match Music.read "/papa_noel.bin" with
+  match Music.read "/minor_jumps_major_cats.bin" with
   | None -> failwith "no music"
-  | Some bytes -> String.iter (fun c -> Pwm.write (Char.code c)) bytes
+  | Some bytes ->
+    Pwm.init () |> Result.get_ok ;
+    String.iter (fun c -> Pwm.write (Char.code c)) bytes
