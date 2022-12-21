@@ -7,3 +7,4 @@ dune-workspace
 node_modules
 *.log
 main
+*.bin
