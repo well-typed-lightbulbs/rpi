@@ -1,0 +1,6 @@
+(library
+ (name mbox)
+ (public_name rpi.mbox)
+ (enabled_if
+  (= %{architecture} arm64))
+ (libraries embedded rpi lwt))

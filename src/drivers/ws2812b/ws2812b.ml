@@ -37,11 +37,15 @@ module Encoding = struct
       code ~multiplier state (value land (1 lsl i) <> 0)
     done
 
-  let pause_words ~multiplier = 10 * (multiplier * 5000 / 125 / 32)
+  (* 60 usec *)
+  let down_time_ns = 60 * 1000
+  let frame_time_ns = 1250
+
+  let pause_words ~multiplier =
+    (multiplier * down_time_ns / frame_time_ns / 32) + 1
 
   let size ~multiplier length =
     let code_size = multiplier * 24 * length in
-    (* we add one because the last frame has to be zeros. otherwise it's repeated *)
     ((code_size + 31) / 32) + pause_words ~multiplier
 
   (* encode a light pattern *)
@@ -70,19 +74,6 @@ type frame = int array
 
 open Rpi
 
-let next_write_after = ref (Mtime.elapsed_us ())
-
-(* 50 usec*)
-let down_time = 50L
-
-let wait_until_ready () =
-  let current_time = Mtime.elapsed_us () in
-  if current_time > !next_write_after then Lwt.return_unit
-  else Mtime.sleep_us (Int64.sub !next_write_after current_time)
-
-let update_next_write_time () =
-  next_write_after := Int64.add (Mtime.elapsed_us ()) down_time
-
 module Pwm = Pwm.Make (struct
   open Pwm
 
@@ -93,12 +84,10 @@ module Pwm = Pwm.Make (struct
   let is_stereo = false
 end)
 
-open Lwt.Syntax
-
 type t = { multiplier : int }
 
 let init () =
-  let+ v = Pwm.init () in
+  let v = Pwm.init () in
   let multiplier = match v with Ok () -> 3 | Error freq -> freq / 800_000 in
   assert (multiplier >= 3);
   Printf.printf "multiplier: %d\n%!" multiplier;
@@ -107,13 +96,9 @@ let init () =
 let encode { multiplier } = Encoding.v ~multiplier
 
 let output data =
-  let* () = wait_until_ready () in
-  let* _ = Pwm.init () in
   for i = 0 to Array.length data - 1 do
     Pwm.write_sync data.(i)
-  done;
-  let+ () = Pwm.stop () in
-  update_next_write_time ()
+  done
 
 let encoded_size { multiplier } len = 4 * Encoding.size ~multiplier len
 

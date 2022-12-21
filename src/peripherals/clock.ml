@@ -67,13 +67,6 @@ module Reg = struct
   end
 end
 
-let cm_pwmdiv = Mem.(offset base 0xa4)
-let cm_pwmctl = Mem.(offset base 0xa0)
-(*
-  let password = 0x5a lsl 24*)
-
-(*  let div_divi value = (value land 0xfff) lsl 12*)
-
 let wait_while_busy () =
   while Reg.Cm_pwmctl.(read () && busy) do
     ()
@@ -96,19 +89,17 @@ let set_pwm_clock freq =
         empty |> set password () |> set divi (crystal_frequency / freq) |> write);
       Reg.Cm_pwmctl.(empty |> set password () |> write);
       Reg.Cm_pwmctl.(empty |> set password () |> set source OSC |> write);
-      Mtime.sleep_us_sync 10L;
+      Mtime.sleep_us 10L;
       Reg.Cm_pwmctl.(
         empty |> set password () |> set source OSC |> set enable true |> write);
       wait_until_busy ();
       clock_freq := Some freq;
       Ok ()
 
-let password = 0x5a lsl 24
-
 let kill () =
   Reg.Cm_pwmctl.(empty |> set password () |> write);
   (* set zero *)
-  Mtime.sleep_us_sync 10L;
+  Mtime.sleep_us 10L;
   Reg.Cm_pwmctl.(empty |> set password () |> set kill true |> write);
   (* set kill*)
   wait_while_busy ()

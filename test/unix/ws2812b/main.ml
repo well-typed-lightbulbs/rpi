@@ -1,8 +1,5 @@
 open Rpi
 
-let reset_frame =
-  List.init 361 (fun _ -> { Ws2812b.r = 0; g = 0; b = 0 }) |> Ws2812b.encode
-
 let cut = 16
 
 let pattern =
@@ -37,13 +34,16 @@ let noise (target : Ws2812b.color) { Ws2812b.r; g; b } =
 let stop = ref false
 let () = Sys.(set_signal sigint (Signal_handle (fun _ -> stop := true)))
 
-open Lwt.Syntax
-
-let main () =
+let () =
+  let ws = Ws2812b.init () in
+  let reset_frame =
+    List.init 361 (fun _ -> { Ws2812b.r = 0; g = 0; b = 0 })
+    |> Ws2812b.encode ws
+  in
   let c = 0 in
   let rec loop (pattern, target) c =
     let counter = Mtime.counter () in
-    let* () = Ws2812b.output (Ws2812b.encode (pattern |> List.rev)) in
+    Ws2812b.output (Ws2812b.encode ws (pattern |> List.rev));
     let offset = Mtime.counter_value_us counter in
     Mtime.sleep_us (Int64.sub 16_000L offset);
     (* 60 FPS *)
@@ -54,5 +54,3 @@ let main () =
       loop (pattern, next target) (c + 1)
   in
   loop (pattern, pattern) c
-
-  let () = Lwt_main.run (main ())

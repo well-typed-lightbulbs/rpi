@@ -1,0 +1,6 @@
+(library
+ (name mtime)
+ (public_name rpi.mtime)
+ (enabled_if
+  (= %{architecture} arm64))
+ (libraries embedded rpi))

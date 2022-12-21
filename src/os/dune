@@ -3,4 +3,4 @@
  (public_name rpi.os)
  (enabled_if
   (= %{architecture} arm64))
- (libraries rpi rpi.hardware lwt bheap duration))
+ (libraries rpi rpi.hardware lwt bheap duration rpi.mtime))

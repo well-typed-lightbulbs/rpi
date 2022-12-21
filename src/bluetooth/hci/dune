@@ -1,7 +1,7 @@
 (library
  (name hci)
  (public_name rpi.bluetooth.hci)
- (libraries rpi rpi.hardware faraday)
+ (libraries rpi rpi.hardware faraday lwt)
  (enabled_if
   (= %{architecture} arm64))
  (no_dynlink)

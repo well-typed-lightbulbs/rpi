@@ -6,8 +6,7 @@
    (or
     (= %{context_name} "default")
     (= %{context_name} "rpi4_linux"))))
- (libraries rpi unix rpi.hardware-unix lwt.unix ws2812b rpi.mbox)
- (foreign_stubs (language c) (names main_stubs)))
+ (libraries rpi unix rpi.hardware-unix lwt.unix rpi.ws2812b))
 
 (rule
  (targets music.ml)

@@ -1,0 +1,6 @@
+(library
+ (name uart_poll)
+ (public_name rpi.uart.poll)
+ (enabled_if
+  (= %{architecture} arm64))
+ (libraries embedded rpi lwt))

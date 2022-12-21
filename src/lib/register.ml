@@ -52,8 +52,6 @@ module Raw : Raw_S with type value = Optint.t = struct
     current
     land lnot (mask lsl offset)
     lor ((to_int value |> Optint.of_int) lsl offset)
-
-  let ( || ) = set
 end
 
 module type S = sig

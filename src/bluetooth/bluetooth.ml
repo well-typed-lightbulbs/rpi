@@ -1,7 +1,4 @@
 open Rpi
-module UART0 = UART.UART0
-
-module type UART = UART.S
 
 (* some docs:
    http://software-dl.ti.com/simplelink/esd/simplelink_cc13x2_sdk/1.60.00.29_new/exports/docs/ble5stack/vendor_specific_guide/BLE_Vendor_Specific_HCI_Guide/hci_interface.html
@@ -14,7 +11,11 @@ external bt_get_firmware :
   unit -> (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) BA.t
   = "caml_bt_get_firmware"
 
-module Make (UART : UART.S) = struct
+module Make (UART : sig
+  val read_byte : unit -> int Lwt.t
+  val write_byte : int -> unit
+end) =
+struct
   open Lwt.Syntax
 
   let uart_assert_read value =
@@ -198,7 +199,9 @@ module Make (UART : UART.S) = struct
     let max_interval =
       Float.to_int (Float.of_int advert_max_freq /. ble_granularity)
     in
-    let* _ = set_LE_advert_parameters Hci.LL.adv_ind min_interval max_interval 0 0 in
+    let* _ =
+      set_LE_advert_parameters Hci.LL.adv_ind min_interval max_interval 0 0
+    in
     let* _ = set_LE_advert_data () in
     set_LE_advert_enable 1
 

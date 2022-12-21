@@ -10,6 +10,8 @@
 #include "caml/memory.h"
 #include "caml/fail.h"
 
+value caml_unix_mapped_alloc(int flags, int num_dims, void * data, intnat * dim);
+
 
 CAMLprim value caml_ba_mmap(value vkind, value vlayout, value caml_base, value caml_size)
 {

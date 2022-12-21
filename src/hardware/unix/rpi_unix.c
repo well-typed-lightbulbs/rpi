@@ -44,6 +44,7 @@ CAMLprim value caml_mmap(value caml_base, value caml_size)
 }
 
 
+
 CAMLprim value caml_ba_mmap(value vkind, value vlayout, value caml_base, value caml_size)
 {
     uint64_t base = Nativeint_val(caml_base);
@@ -72,7 +73,7 @@ CAMLprim value caml_ba_mmap(value vkind, value vlayout, value caml_base, value c
     close(mem_fd);
 
 
-    return caml_unix_mapped_alloc(flags, 1, ((uint64_t)mem) + (base & offsetmask), &size);
+    return caml_unix_mapped_alloc(flags, 1, (void*)((uint64_t)mem) + (base & offsetmask), &size);
 }
 
 #include <sys/ioctl.h>

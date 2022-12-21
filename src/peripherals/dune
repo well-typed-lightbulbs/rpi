@@ -3,5 +3,5 @@
  (public_name rpi)
  (enabled_if
   (= %{architecture} arm64))
- (libraries embedded rpi.hardware rpi.base lwt ke)
+ (libraries embedded rpi.hardware rpi.base)
  (preprocess (pps ppx_cstruct)))

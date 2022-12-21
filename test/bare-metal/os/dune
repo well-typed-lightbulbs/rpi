@@ -1,0 +1,28 @@
+(executable
+ (name main)
+ (enabled_if
+  (and
+   (= %{architecture} arm64)
+   (= %{context_name} "rpi4")))
+ (libraries rpi unix rpi.os rpi.hardware-unix rpi.base-rpi4))
+
+(rule
+ (targets kernel8.elf)
+ (enabled_if
+  (and
+   (= %{architecture} arm64)
+   (= %{context_name} "rpi4")))
+ (mode promote)
+ (action
+  (copy main.exe kernel8.elf)))
+
+(rule
+ (targets kernel8.img)
+ (enabled_if
+  (and
+   (= %{architecture} arm64)
+   (= %{context_name} "rpi4")))
+ (deps kernel8.elf)
+ (mode promote)
+ (action
+  (run aarch64-linux-gnu-objcopy -O binary kernel8.elf kernel8.img)))

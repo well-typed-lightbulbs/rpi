@@ -21,7 +21,7 @@ module DDAudio = Rpi.DMA.Make (struct
   let num = 4
 end)
 
-let with_buffer size = Mailbox.with_buffer_lwt ~size ~align:256 ~flags:0xc
+let with_buffer size = Mbox.with_buffer_lwt ~size ~align:256 ~flags:0xc
 
 let led_pattern =
   let cut = 16 in
@@ -42,7 +42,7 @@ open Lwt.Syntax
 
 let led_strip_main () =
   let* () = Lwt_unix.sleep 0.5 in
-  let* ws = Ws2812b.init () in
+  let ws = Ws2812b.init () in
   let size = Ws2812b.encoded_size ws 361 in
   Printf.printf "LED STORAGE: %d\n%!" size;
 
@@ -86,13 +86,12 @@ let led_strip_main () =
   Printf.printf "LED> READY%!";
   let rec loop () =
     Printf.printf ">%!";
-    let* () = Mtime.sleep_us 10_000L in
     Ws2812b.write_cstruct ws led_data !led_pattern;
-    let* () = Mtime.sleep_us 10L in
+    Mtime.sleep_us 10L;
     Mem.dmb ();
     DD.Reg.Cs.(empty |> set end' true |> set int true |> write);
     Mem.dmb ();
-    let* () = Mtime.sleep_us 10L in
+    Mtime.sleep_us 10L;
 
     Mem.dmb ();
     DD.Reg.Conblk_ad.(
@@ -124,13 +123,6 @@ let led_strip_main () =
   Printf.printf "LED FINISHED \n%!"
 
 let () = Sys.(set_signal sigint (Signal_handle (fun _ -> stop := true)))
-
-let ( let+-+ ) (range, cut) fn =
-  let rec aux pos =
-    let* () = fn (pos, min (pos + cut) (range - 1)) in
-    if pos + cut < range then aux (pos + cut) else Lwt.return_unit
-  in
-  aux 0
 
 let play_music () =
   let music = Music.read "/silent_night.bin" |> Option.get in
@@ -197,7 +189,7 @@ let play_music () =
     };
   Printf.printf "PWM..\n%!";
   (* PWM init *)
-  let* _ = PwmAudio.init () in
+  PwmAudio.init () |> Result.get_ok;
   Printf.printf "Ready..\n%!";
   (* initial load of the piece *)
   for i = 0 to buffer_size / 4 do
@@ -207,7 +199,7 @@ let play_music () =
   (* DMA init *)
   Mem.dmb ();
   DDAudio.Reg.Cs.(empty |> set reset true |> write);
-  Mtime.sleep_us_sync 10L;
+  Mtime.sleep_us 10L;
   DDAudio.Reg.Cs.(empty |> set end' true |> set int true |> write);
   Mem.dmb ();
 
